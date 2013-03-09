@@ -227,7 +227,25 @@ void decodeBCD() {
           + 2 * bits[37*2 + 0]
           + 1 * bits[38*2 + 0];
 
+  int hour = 20 * bits[39*2 + 0]
+           + 10 * bits[40*2 + 0]
+           +  8 * bits[41*2 + 0]
+           +  4 * bits[42*2 + 0]
+           +  2 * bits[43*2 + 0]
+           +  1 * bits[44*2 + 0]
+
+  int minute = 40 * bits[45*2 + 0]
+             + 20 * bits[46*2 + 0]
+             + 10 * bits[47*2 + 0]
+             +  8 * bits[48*2 + 0]
+             +  4 * bits[49*2 + 0]
+             +  2 * bits[50*2 + 0]
+             +  1 * bits[51*2 + 0];
+ 
+
   printf("year/month/day = %d/%d/%d\n", year, month, day);
   printf("day of week (0=sunday) = %d\n", dow);
+  printf("hh:mm = %2.2d:%2.2d (%d %d)\n", hour, minute, hour, minute);
 
 }
+

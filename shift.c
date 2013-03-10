@@ -2,6 +2,12 @@
 #include <sys/time.h>
 #include <assert.h>
 
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+#include <errno.h>
+#include <time.h>
+
 // Dave_H off #a&a suggested the shift register
 // approach.
 
@@ -47,9 +53,42 @@ int inhibitDecodeFor = BUFSIZE;
 
 void decode();
 void decodeBCD();
+void tellNTP(int year, int month, int day, int hour, int minute);
+static volatile struct shmTime *getShmTime(int unit);
+
+
+// this struct def from ntpd via gpsd
+struct shmTime
+{
+    int mode;			/* 0 - if valid set
+				 *       use values, 
+				 *       clear valid
+				 * 1 - if valid set 
+				 *       if count before and after read of values is equal,
+				 *         use values 
+				 *       clear valid
+				 */
+    int count;
+    time_t clockTimeStampSec;
+    int clockTimeStampUSec;
+    time_t receiveTimeStampSec;
+    int receiveTimeStampUSec;
+    int leap;
+    int precision;
+    int nsamples;
+    int valid;
+    int pad[10];
+};
+
+
+volatile struct shmTime *ntpmem;
 
 void main() {
   printf("msf shift.c\n");
+
+  printf("getting NTP shm\n");
+  ntpmem = getShmTime(2);
+  assert(ntpmem!=0);
 
   printf("entering infinite loop.\n");
   while(1==1) {
@@ -257,5 +296,108 @@ void decodeBCD() {
   printf("hh:mm = %2.2d:%2.2d (%d %d)\n", hour, minute, hour, minute);
 */
 
+  tellNTP(year, month, day, hour, minute);
+}
+
+void tellNTP(int year, int month, int day, int hour, int minute) {
+  printf("Telling NTP\n");
+  assert(ntpmem != 0);
+
+  printf("ntpmem is %p\n", ntpmem);
+  printf("ntpmem->mode = %d\n", ntpmem->mode); 
+
+  assert(ntpmem->mode == 0);
+  // ntpd appears to create the segment and put it in
+  // mode 0. I do not know if I can change that or not
+  // so I'll just stick with mode 0 for now.
+
+  // BUG: we will have skipped a bunch of ms so
+  // ideally I would like a time stamp for "time of
+  // last reading" or something like that, so that
+  // I can communicate that rather than the "now" that
+  // is now when this function is called.
+
+  if(ntpmem->valid != 0) {
+    printf("There is still a valid result in ntp struct. Skipping update.\n");
+  } else {
+    printf("ntp struct contains no valid result, so we can populate it.\n");
+
+    // i need to convert MSF time into unix time in seconds. perhaps using mktime
+
+    struct tm clocktime;
+    clocktime.tm_sec = 0;
+    clocktime.tm_min = minute;
+    clocktime.tm_hour = hour;
+    clocktime.tm_mday = day;
+    clocktime.tm_mon = month-1;
+    clocktime.tm_year = 100+year;
+    clocktime.tm_isdst = 0; // this info is extractable from time signal
+    time_t clocksec = mktime(&clocktime);
+    printf("time_t clocksec = %lld\n",(long long)clocksec);
+
+    //       struct tm {
+     //          int tm_sec;         /* seconds */
+      //         int tm_min;         /* minutes */
+        //       int tm_hour;        /* hours */
+     //          int tm_mday;        /* day of the month */
+       //        int tm_mon;         /* month */
+         //      int tm_year;        /* year */
+           //    int tm_wday;        /* day of the week */
+//               int tm_yday;        /* day in the year */
+  //             int tm_isdst;       /* daylight saving time */
+    //       };
+
+    ntpmem->clockTimeStampSec = clocksec;
+    ntpmem->clockTimeStampUSec = 0;
+
+// TODO: we'll need these earlier on for the receive time
+//   and need to construct clocktime from the MSF signal
+//   but for now, use this time for everything...
+    struct timeval tv;
+    struct timezone tz;
+    
+    gettimeofday(&tv, &tz);
+
+    ntpmem->receiveTimeStampSec = tv.tv_sec;
+    ntpmem->receiveTimeStampUSec = tv.tv_usec;
+    ntpmem->valid = 1;
+  }
+}
+
+
+
+// following function based on BSD-licensed code from gpsd
+static volatile struct shmTime *getShmTime(int unit)
+{
+#define NTPD_BASE 0x4e545030
+    int shmid;
+    unsigned int perms;
+    volatile struct shmTime *p;
+    // set the SHM perms the way ntpd does
+    if (unit < 2) {
+	// we are root, be careful
+	perms = 0600;
+    } else {
+	// we are not root, try to work anyway
+	perms = 0666;
+    }
+
+    shmid = shmget((key_t) (NTPD_BASE + unit),
+		   sizeof(struct shmTime), (int)(IPC_CREAT | perms));
+    if (shmid == -1) {
+	printf( "NTPD shmget(%ld, %zd, %o) fail: %s\n",
+		    (long int)(NTPD_BASE + unit), sizeof(struct shmTime),
+		    (int)perms, strerror(errno));
+	return NULL;
+    } 
+    p = (struct shmTime *)shmat(shmid, 0, 0);
+    /*@ -mustfreefresh */
+    if ((int)(long)p == -1) {
+	printf("NTPD shmat failed: %s\n",
+		    strerror(errno));
+	return NULL;
+    }
+    return p;
+    /*@ +mustfreefresh */
 }
 

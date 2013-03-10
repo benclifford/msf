@@ -232,7 +232,7 @@ void decodeBCD() {
            +  8 * bits[41*2 + 0]
            +  4 * bits[42*2 + 0]
            +  2 * bits[43*2 + 0]
-           +  1 * bits[44*2 + 0]
+           +  1 * bits[44*2 + 0];
 
   int minute = 40 * bits[45*2 + 0]
              + 20 * bits[46*2 + 0]

@@ -138,15 +138,17 @@ void decode() {
   printf("Decoding");
   int sec;
   for(sec = 0; sec < 60; sec++) {
+#ifdef VERBOSE
     printf("Processing second %d\n", sec);
+#endif
     int i;
     int secbase = sec * RPS;
-/*
+#ifdef SUPERVERBOSE
     for(i=0; i<RPS; i++) {
       printf("%c",buffer[ (bufoff + secbase + i) % BUFSIZE]);
     }
     printf("\n");
-*/
+#endif
     checkbit(secbase,0, '1');
     int bitA = getbit(secbase,1);
     int bitB = getbit(secbase,2);
@@ -159,7 +161,9 @@ void decode() {
     checkbit(secbase,9, '0');
     bits[sec*2] = bitA;
     bits[sec*2+1] = bitB;
+#ifdef VERBOSE
     printf("\n");
+#endif
   }
   inhibitDecodeFor = RPS * 2;
 }
@@ -167,6 +171,7 @@ void decode() {
 /* checks 100ms block numbered by 'hundred' in specified
    second has value c, and outputs error % */
 void checkbit(int secbase, int hundred, char c) {  
+#ifdef VERBOSE
   int v=0;
   int hundredbase;
   int i;
@@ -177,6 +182,7 @@ void checkbit(int secbase, int hundred, char c) {
   }
   float pct = ((float)v)/((float)HUNDREDMS);
   printf("C%.1f ", pct);
+#endif
 }
 
 int getbit(int secbase, int hundred) {
@@ -189,7 +195,9 @@ int getbit(int secbase, int hundred) {
     if(buffer[p] == '1') v++;
   }
   float pct = ((float)v)/((float)HUNDREDMS);
+#ifdef VERBOSE
   printf("B%.1f ", pct);
+#endif
   if(pct>0.5) {
     return 1;
   } else {
@@ -243,9 +251,11 @@ void decodeBCD() {
              +  1 * bits[51*2 + 0];
  
 
-  printf("year/month/day = %d/%d/%d\n", year, month, day);
+  printf("Time now is '%d/%2.2d/%2.2d %2.2d:%2.2d\n", year, month, day, hour, minute);
+/*
   printf("day of week (0=sunday) = %d\n", dow);
   printf("hh:mm = %2.2d:%2.2d (%d %d)\n", hour, minute, hour, minute);
+*/
 
 }
 

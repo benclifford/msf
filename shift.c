@@ -52,8 +52,8 @@ long long oldtenths=-1;
 int inhibitDecodeFor = BUFSIZE;
 
 void decode();
-void decodeBCD();
-void tellNTP(int year, int month, int day, int hour, int minute);
+void decodeBCD(struct timeval *tv, struct timezone *tz);
+void tellNTP(int year, int month, int day, int hour, int minute, struct timeval *tv, struct timezone *tz);
 static volatile struct shmTime *getShmTime(int unit);
 
 
@@ -92,6 +92,12 @@ void main() {
 
   printf("entering infinite loop.\n");
   while(1==1) {
+    // this time gets used here to determine if
+    // we should tick, and also later when we decode
+    // because its the time we took the reading for
+    // the last reading of the buffer, which often
+    // (but not in leap seconds cases) will be the
+    // start of the minute just described.
     struct timeval tv;
     struct timezone tz;
     
@@ -157,7 +163,7 @@ void main() {
             if(numZeroesInSecond > (RPS * 9 / 20)) {
               printf("Matched num zeroes threshold\n");
               decode();
-              decodeBCD();
+              decodeBCD(&tv, &tz);
             }
           }
         }
@@ -244,7 +250,7 @@ int getbit(int secbase, int hundred) {
   }
 }
 
-void decodeBCD() {
+void decodeBCD(struct timeval *tv, struct timezone *tz) {
   printf("Decoding BCD\n");
   // BCD year
   int year = 80 * bits[17*2 + 0]
@@ -296,10 +302,10 @@ void decodeBCD() {
   printf("hh:mm = %2.2d:%2.2d (%d %d)\n", hour, minute, hour, minute);
 */
 
-  tellNTP(year, month, day, hour, minute);
+  tellNTP(year, month, day, hour, minute, tv, tz);
 }
 
-void tellNTP(int year, int month, int day, int hour, int minute) {
+void tellNTP(int year, int month, int day, int hour, int minute, struct timeval *tv, struct timezone *tz) {
   printf("Telling NTP\n");
   assert(ntpmem != 0);
 
@@ -353,13 +359,11 @@ void tellNTP(int year, int month, int day, int hour, int minute) {
 // TODO: we'll need these earlier on for the receive time
 //   and need to construct clocktime from the MSF signal
 //   but for now, use this time for everything...
-    struct timeval tv;
-    struct timezone tz;
     
-    gettimeofday(&tv, &tz);
+    gettimeofday(tv, tz);
 
-    ntpmem->receiveTimeStampSec = tv.tv_sec;
-    ntpmem->receiveTimeStampUSec = tv.tv_usec;
+    ntpmem->receiveTimeStampSec = tv->tv_sec;
+    ntpmem->receiveTimeStampUSec = tv->tv_usec;
     ntpmem->valid = 1;
   }
 }

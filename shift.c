@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/time.h>
 #include <assert.h>
 
@@ -29,7 +30,7 @@
 // the start of the buffer.
 
 // readings per second
-#define RPS 100
+#define RPS 1000
 
 // this will be a shift register implemented
 // as a cyclic buffer.
@@ -52,6 +53,8 @@ long long oldtenths=-1;
 // seconds whenever we do a decode so that
 // it only happens once per cycle.
 int inhibitDecodeFor = BUFSIZE;
+
+int exitAfter = 5; // -1 to not exit
 
 void checkdecode(struct timeval *, struct timezone *);
 void decode();
@@ -211,6 +214,7 @@ void checkdecode(struct timeval *tv, struct timezone *tz) {
         // want to shift this down, so if we have a sync pulse approaching,
         // we defer until we get the leading edge at the very start
         if(inhibitDecodeFor <= 0 && buffer[bufoff] == '1') { 
+          // printf("c"); fflush(stdout);
           int numOnesInFirst = 0;
           int numZeroesInSecond = 0;
           int i;
@@ -274,7 +278,10 @@ void decode() {
     printf("\n");
 #endif
   }
-  inhibitDecodeFor = RPS * 2;
+  // if we've been successful, we won't expect to find a
+  // result for another minute, so wait 'till just before
+  // then before we start looking in the buffer again.
+  inhibitDecodeFor = RPS * 55;
 }
 
 /* checks 100ms block numbered by 'hundred' in specified
@@ -366,6 +373,13 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
   printf("day of week (0=sunday) = %d\n", dow);
   printf("hh:mm = %2.2d:%2.2d (%d %d)\n", hour, minute, hour, minute);
 */
+
+  if(exitAfter>0) exitAfter--;
+  if(exitAfter == 0) {
+    printf("exitAfter counter reached zero - exiting\n");
+    exit(0);
+  }
+
   tellNTP(year, month, day, hour, minute, tv, tz);
 }
 

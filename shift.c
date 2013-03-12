@@ -103,24 +103,27 @@ void main() {
 
   int fd;
   fd=fileno(fp);
-
+ 
   while(1==1) {
-
-    
-
-    // this time gets used here to determine if
-    // we should tick, and also later when we decode
-    // because its the time we took the reading for
-    // the last reading of the buffer, which often
-    // (but not in leap seconds cases) will be the
-    // start of the minute just described.
+    long long newtenths = oldtenths;
     struct timeval tv;
     struct timezone tz;
-    
-    gettimeofday(&tv, &tz);
+ 
+    // this becomes its own loop because I want to put in
+    // a different mechanism here that uses "poll" later on.    
 
-    long long newtenths;
-    newtenths = ((long long)tv.tv_sec) * RPS + ((long long)tv.tv_usec)/(1000000/RPS);
+    while(newtenths == oldtenths) {
+      // this time gets used here to determine if
+      // we should tick, and also later when we decode
+      // because its the time we took the reading for
+      // the last reading of the buffer, which often
+      // (but not in leap seconds cases) will be the
+      // start of the minute just described.
+    
+      gettimeofday(&tv, &tz);
+
+      newtenths = ((long long)tv.tv_sec) * RPS + ((long long)tv.tv_usec)/(1000000/RPS);
+    }
 
     if(newtenths != oldtenths) {
       if(newtenths != oldtenths+1 && oldtenths != -1) {

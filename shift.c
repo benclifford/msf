@@ -7,6 +7,8 @@
 
 #include <errno.h>
 #include <time.h>
+#include <poll.h>
+
 
 // Dave_H off #a&a suggested the shift register
 // approach.
@@ -51,6 +53,7 @@ long long oldtenths=-1;
 // it only happens once per cycle.
 int inhibitDecodeFor = BUFSIZE;
 
+void checkdecode(struct timeval *, struct timezone *);
 void decode();
 void decodeBCD(struct timeval *tv, struct timezone *tz);
 void tellNTP(int year, int month, int day, int hour, int minute, struct timeval *tv, struct timezone *tz);
@@ -98,6 +101,9 @@ void main() {
   int old_level = 0;
 */
 
+  int oldc='X';
+  assert(oldc == 'X' || oldc == '1' || oldc == '0');
+
   FILE *fp;
   fp = fopen("/sys/class/gpio/gpio25/value","r");
 
@@ -108,10 +114,9 @@ void main() {
     long long newtenths = oldtenths;
     struct timeval tv;
     struct timezone tz;
- 
-    // this becomes its own loop because I want to put in
-    // a different mechanism here that uses "poll" later on.    
 
+#define POLLWAIT
+#ifdef POLLHARD
     while(newtenths == oldtenths) {
       // this time gets used here to determine if
       // we should tick, and also later when we decode
@@ -124,16 +129,46 @@ void main() {
 
       newtenths = ((long long)tv.tv_sec) * RPS + ((long long)tv.tv_usec)/(1000000/RPS);
     }
+#endif
+#ifdef POLLWAIT
+    int ret = 0;
+    while(ret == 0) {
+      printf("P");fflush(stdout);
+      struct pollfd fds;
+      fds.fd = fd;
+      fds.events = POLLPRI;
+      fds.revents=0;
+      ret = poll(&fds, 1, 5000);
+      gettimeofday(&tv, &tz); // get this time stamp as soon after poll returns as possible
+    }
+
+    newtenths = ((long long)tv.tv_sec) * RPS + ((long long)tv.tv_usec)/(1000000/RPS);
+#endif
 
     if(newtenths != oldtenths) {
       if(newtenths != oldtenths+1 && oldtenths != -1) {
-        printf("WARNING: sync error. oldtenths = %lld, newtenths = %lld, not oldtenths+1\n",
+#ifdef POLLHARD
+        printf("WARNING: skipped multiple steps. oldtenths = %lld, newtenths = %lld\n",
           oldtenths, newtenths);
+#endif
+// this expected normal operation in the case of POLLWAIT mode so don't print warnings.
+
         long long error = newtenths - oldtenths - 1; // -1 because we're going to read a bit anyway.
-        bufoff = (bufoff + error) % BUFSIZE;
+        int i;
+        for(i = 0; i<error; i++)
+        {
+          assert(oldc == 'X' || oldc == '1' || oldc == '0');
+          // printf("filling slot %d with old value %c at bufoff %d\n", i, oldc, bufoff);
+          // printf("F%d=%c ",bufoff,oldc);fflush(stdout);
+          buffer[bufoff] = oldc; 
+          bufoff=(bufoff+1) % BUFSIZE;
+          checkdecode(&tv,&tz);
+        }
+        // bufoff = (bufoff + error) % BUFSIZE;
         // this shoudl resync us, and leave whatever was in the buffer previously. that might be
         // dangerous if we resync a huge distance and end up leaving a valid time from last time
         // round in the buffer. maybe could store "invalid" symbols there?
+        if(inhibitDecodeFor > 0) inhibitDecodeFor-=error;
       }
       // printf("q"); fflush(stdout);
       oldtenths = newtenths;
@@ -141,6 +176,8 @@ void main() {
       char c;
       rsize = read(fd, &c, 1);
       assert(rsize == 1);
+      oldc=c;
+      assert(oldc == 'X' || oldc == '1' || oldc == '0');
       fseek(fp, 0, SEEK_SET);
  
 /*
@@ -156,16 +193,24 @@ void main() {
       bufoff ++;
       bufoff %= BUFSIZE;
 
-      if(inhibitDecodeFor > 0) {
+      if(inhibitDecodeFor != 0) {
         inhibitDecodeFor--;
-        if(inhibitDecodeFor == 0) {
+        if(inhibitDecodeFor <= 0) {
           printf("Decode inhibition ended.\n");
+          inhibitDecodeFor = 0; // it might have been made negative elsewhere
         }
       } else {
+        checkdecode(&tv, &tz);
+      }
+    }
+  }
+}
 
+void checkdecode(struct timeval *tv, struct timezone *tz) {
+        assert(tv!=NULL);
         // want to shift this down, so if we have a sync pulse approaching,
         // we defer until we get the leading edge at the very start
-        if(buffer[bufoff] == '1') { 
+        if(inhibitDecodeFor <= 0 && buffer[bufoff] == '1') { 
           int numOnesInFirst = 0;
           int numZeroesInSecond = 0;
           int i;
@@ -184,13 +229,11 @@ void main() {
             if(numZeroesInSecond > (RPS * 9 / 20)) {
               printf("Matched num zeroes threshold\n");
               decode();
-              decodeBCD(&tv, &tz);
+              assert(tv!=NULL);
+              decodeBCD(tv, tz);
             }
           }
         }
-      }
-    }
-  }
 }
 
 void checkbit(int secbase, int hundred, char c);
@@ -272,6 +315,7 @@ int getbit(int secbase, int hundred) {
 }
 
 void decodeBCD(struct timeval *tv, struct timezone *tz) {
+  assert(tv!=NULL);
   printf("Decoding BCD\n");
   // BCD year
   int year = 80 * bits[17*2 + 0]
@@ -322,7 +366,6 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
   printf("day of week (0=sunday) = %d\n", dow);
   printf("hh:mm = %2.2d:%2.2d (%d %d)\n", hour, minute, hour, minute);
 */
-
   tellNTP(year, month, day, hour, minute, tv, tz);
 }
 

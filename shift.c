@@ -91,7 +91,23 @@ void main() {
   assert(ntpmem!=0);
 
   printf("entering infinite loop.\n");
+
+/*
+  struct timeval old_tv;
+  old_tv.tv_sec = 0;
+  int old_level = 0;
+*/
+
+  FILE *fp;
+  fp = fopen("/sys/class/gpio/gpio25/value","r");
+
+  int fd;
+  fd=fileno(fp);
+
   while(1==1) {
+
+    
+
     // this time gets used here to determine if
     // we should tick, and also later when we decode
     // because its the time we took the reading for
@@ -118,10 +134,12 @@ void main() {
       }
       // printf("q"); fflush(stdout);
       oldtenths = newtenths;
-      FILE *fp;
-      fp = fopen("/sys/class/gpio/gpio25/value","r");
-      char c = fgetc(fp);
-      fclose(fp);
+      int rsize;
+      char c;
+      rsize = read(fd, &c, 1);
+      assert(rsize == 1);
+      fseek(fp, 0, SEEK_SET);
+ 
 /*
       if(c=='1') {
         printf("*");

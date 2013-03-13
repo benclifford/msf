@@ -428,7 +428,8 @@ void tellNTP(int year, int month, int day, int hour, int minute, struct timeval 
     clocktime.tm_year = 100+year;
     clocktime.tm_isdst = 0; // this info is extractable from time signal
     time_t clocksec = mktime(&clocktime);
-    printf("time_t clocksec = %lld\n",(long long)clocksec);
+    printf("time_t clocksec (from MSF) = %lld\n",(long long)clocksec);
+    printf("time_t clocksec (local)    = %lld . %6.6lld\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
 
     //       struct tm {
      //          int tm_sec;         /* seconds */

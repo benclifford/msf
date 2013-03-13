@@ -30,7 +30,7 @@
 // the start of the buffer.
 
 // readings per second
-#define RPS 1000
+#define RPS 500
 
 // this will be a shift register implemented
 // as a cyclic buffer.

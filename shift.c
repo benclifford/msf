@@ -136,14 +136,15 @@ void main() {
 #endif
 #ifdef POLLWAIT
     int ret = 0;
+    printf("P");fflush(stdout);
     while(ret == 0) {
-      printf("P");fflush(stdout);
       struct pollfd fds;
       fds.fd = fd;
       fds.events = POLLPRI;
       fds.revents=0;
       ret = poll(&fds, 1, 5000);
       gettimeofday(&tv, &tz); // get this time stamp as soon after poll returns as possible
+      if(ret == 0) printf("x");fflush(stdout);
     }
 
     newtenths = ((long long)tv.tv_sec) * RPS + ((long long)tv.tv_usec)/(1000000/RPS);
@@ -235,12 +236,13 @@ void checkdecode(struct timeval *tv, struct timezone *tz) {
             numOnesInFirst += (buffer[bp] == '1') ? 1 : 0;
           }
           if(numOnesInFirst > (RPS * 9 / 20 )) { // 450ms worth of ones
-            printf("matched num ones threshold, numOnesInFirst = %d, numZeroesInSecond = %d\n", numOnesInFirst, numZeroesInSecond);
+            printf("matched num ones threshold, numOnesInFirst = %d\n", numOnesInFirst);
             for(i=0;i<HALFSEC;i++) {
               int bp;
               bp = (HALFSEC + bufoff + i) % BUFSIZE;
               numZeroesInSecond += (buffer[bp] == '0') ? 1 : 0;
             }
+            printf("numZeroesInSecond = %d\n", numZeroesInSecond);
             if(numZeroesInSecond > (RPS * 9 / 20)) {
               printf("Matched num zeroes threshold\n");
               decode();

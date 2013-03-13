@@ -1,0 +1,35 @@
+Copyright CQX Limited, 2013
+
+* Get the code
+
+  git clone https://github.com/benclifford/msf.git
+
+* Build the code 
+
+  gcc -o shiftmsf shift.c 
+
+* Attach clock module to GPIO pin 25
+
+* Configure ntpd
+
+  Add these lines to /etc/ntpd.conf and restart ntpd:
+
+  server 127.127.28.2
+  fudge 127.127.28.2 refid MSF time1 0.018
+
+  and restart ntpd:
+  sudo /etc/init.d/ntp restart
+
+* Start the polling program
+
+  sudo ./start.sh
+
+* Watch a few minutes for the output to appear.
+
+  You should see the letter P appear every time the LED
+  turns on or off, and after a minute or two if a decode
+  is successful, you should see a timestamp printed.
+
+* After even more minutes, check ntp.
+
+  ntpq -p

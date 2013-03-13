@@ -54,7 +54,8 @@ long long oldtenths=-1;
 // it only happens once per cycle.
 int inhibitDecodeFor = BUFSIZE;
 
-int exitAfter = 5; // -1 to not exit
+// exit after this many successful time readings
+int exitAfter = -1; // -1 to not exit
 
 void checkdecode(struct timeval *, struct timezone *);
 void decode();
@@ -165,8 +166,8 @@ void main() {
           // printf("F%d=%c ",bufoff,oldc);fflush(stdout);
           buffer[bufoff] = oldc; 
           bufoff=(bufoff+1) % BUFSIZE;
-          checkdecode(&tv,&tz);
         }
+        checkdecode(&tv,&tz);
         // bufoff = (bufoff + error) % BUFSIZE;
         // this shoudl resync us, and leave whatever was in the buffer previously. that might be
         // dangerous if we resync a huge distance and end up leaving a valid time from last time
@@ -218,18 +219,28 @@ void checkdecode(struct timeval *tv, struct timezone *tz) {
           int numOnesInFirst = 0;
           int numZeroesInSecond = 0;
           int i;
+
+// do a quick scan first over the whole time range at 10 points.
+          int bad=0;
+          for(i=0; i<10; i++) {
+            int pos = (bufoff + i*(HALFSEC/10)) % BUFSIZE;
+            bad+= (buffer[pos] !='1' ? 1:0);
+          }
+          // 20% wrong?
+          if(bad >= 2) return;
+          printf("C"); fflush(stdout);
           for(i=0;i<HALFSEC;i++) {
             int bp;
             bp = (bufoff + i) % BUFSIZE;
             numOnesInFirst += (buffer[bp] == '1') ? 1 : 0;
           }
-          for(i=0;i<HALFSEC;i++) {
-            int bp;
-            bp = (HALFSEC + bufoff + i) % BUFSIZE;
-            numZeroesInSecond += (buffer[bp] == '0') ? 1 : 0;
-          }
           if(numOnesInFirst > (RPS * 9 / 20 )) { // 450ms worth of ones
             printf("matched num ones threshold, numOnesInFirst = %d, numZeroesInSecond = %d\n", numOnesInFirst, numZeroesInSecond);
+            for(i=0;i<HALFSEC;i++) {
+              int bp;
+              bp = (HALFSEC + bufoff + i) % BUFSIZE;
+              numZeroesInSecond += (buffer[bp] == '0') ? 1 : 0;
+            }
             if(numZeroesInSecond > (RPS * 9 / 20)) {
               printf("Matched num zeroes threshold\n");
               decode();

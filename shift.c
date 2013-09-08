@@ -60,7 +60,7 @@ int exitAfter = -1; // -1 to not exit
 void checkdecode(struct timeval *, struct timezone *);
 void decode();
 void decodeBCD(struct timeval *tv, struct timezone *tz);
-void tellNTP(int year, int month, int day, int hour, int minute, struct timeval *tv, struct timezone *tz);
+void tellNTP(int year, int month, int day, int hour, int minute, struct timeval *tv, struct timezone *tz, int summertime);
 static volatile struct shmTime *getShmTime(int unit);
 
 
@@ -379,9 +379,10 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
              +  4 * bits[49*2 + 0]
              +  2 * bits[50*2 + 0]
              +  1 * bits[51*2 + 0];
- 
 
-  printf("Time now is '%d/%2.2d/%2.2d %2.2d:%2.2d\n", year, month, day, hour, minute);
+  int summertime = bits[58*2 + 1]; 
+
+  printf("Time now is '%d/%2.2d/%2.2d %2.2d:%2.2d (BST = %d)\n", year, month, day, hour, minute, summertime);
 /*
   printf("day of week (0=sunday) = %d\n", dow);
   printf("hh:mm = %2.2d:%2.2d (%d %d)\n", hour, minute, hour, minute);
@@ -393,10 +394,10 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
     exit(0);
   }
 
-  tellNTP(year, month, day, hour, minute, tv, tz);
+  tellNTP(year, month, day, hour, minute, tv, tz, summertime);
 }
 
-void tellNTP(int year, int month, int day, int hour, int minute, struct timeval *tv, struct timezone *tz) {
+void tellNTP(int year, int month, int day, int hour, int minute, struct timeval *tv, struct timezone *tz, int summertime) {
   printf("Telling NTP\n");
   assert(ntpmem != 0);
 
@@ -430,8 +431,11 @@ void tellNTP(int year, int month, int day, int hour, int minute, struct timeval 
     clocktime.tm_year = 100+year;
     clocktime.tm_isdst = 0; // this info is extractable from time signal
     time_t clocksec = mktime(&clocktime);
-    printf("time_t clocksec (from MSF) = %lld\n",(long long)clocksec);
-    printf("time_t clocksec (local)    = %lld . %6.6lld\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
+    if(summertime == 1) {
+      clocksec -= 3600;
+    }
+    printf("time_t clocksec (from MSF) = %lld seconds\n",(long long)clocksec);
+    printf("time_t clocksec (local)    = %lld . %6.6lld seconds\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
 
     //       struct tm {
      //          int tm_sec;         /* seconds */

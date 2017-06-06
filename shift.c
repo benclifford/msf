@@ -98,11 +98,11 @@ void main() {
   assert(ntpmem!=0);
 
   printf("Key: \n");
-  printf("  P = main loop\n");
-  printf("  x = poll timeout without input\n");
-  printf("  C = Starting decode\n");
-  printf(" X1 = Decode failed: insufficient ones in scan zone\n");
+  printf("  . = edge detected on input pin\n");
+  printf("  T = timeout without edge on input\n");
+  printf("  > = Starting decode\n");
   printf(" X0 = Decode failed: insufficient zeroes in scan zone\n");
+  printf(" X1 = Decode failed: insufficient ones in scan zone\n");
   printf("  * = Decode inhibition ended\n");
 
   printf("entering infinite loop.\n");
@@ -144,7 +144,7 @@ void main() {
 #endif
 #ifdef POLLWAIT
     int ret = 0;
-    printf("P");fflush(stdout);
+    printf(".");fflush(stdout);
     while(ret == 0) {
       struct pollfd fds;
       fds.fd = fd;
@@ -152,7 +152,7 @@ void main() {
       fds.revents=0;
       ret = poll(&fds, 1, 5000);
       gettimeofday(&tv, &tz); // get this time stamp as soon after poll returns as possible
-      if(ret == 0) printf("x");fflush(stdout);
+      if(ret == 0) printf("T");fflush(stdout);
     }
 
     newtenths = ((long long)tv.tv_sec) * RPS + ((long long)tv.tv_usec)/(1000000/RPS);
@@ -237,7 +237,7 @@ void checkdecode(struct timeval *tv, struct timezone *tz) {
           }
           // 20% wrong?
           if(bad >= 2) return;
-          printf("C"); fflush(stdout);
+          printf(">"); fflush(stdout);
           for(i=0;i<HALFSEC;i++) {
             int bp;
             bp = (bufoff + i) % BUFSIZE;

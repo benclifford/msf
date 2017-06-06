@@ -273,7 +273,7 @@ int getbit(int secbase, int hundred);
 // at the buf offset.
 // its going to decode into 120 bits, roughly. (2 per sec)
 void decode() {
-  printf("Decoding");
+  printf("Decoding\n");
   int sec;
   for(sec = 0; sec < 60; sec++) {
 #ifdef VERBOSE

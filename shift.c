@@ -491,8 +491,8 @@ void tellNTP(int year, int month, int day, int hour, int minute, struct timeval 
     if(summertime == 1) {
       clocksec -= 3600;
     }
-    printf("tellNTP: MSF unix time    = %14lld seconds\n",(long long)clocksec);
-    printf("tellNTP: system unix time = %14lld.%6.6lld seconds\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
+    printf("tellNTP: MSF time          = %14lld seconds\n",(long long)clocksec);
+    printf("tellNTP: system edge time  = %14lld.%6.6lld seconds\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
 
     //       struct tm {
      //          int tm_sec;         /* seconds */
@@ -513,8 +513,17 @@ void tellNTP(int year, int month, int day, int hour, int minute, struct timeval 
     // thing to be doing: the receive time stamp should match
     // up as closely as possible with whichever edge transition
     // in the input signal is the minute marker.
+
+    // (tv,tz) already contain a time, which is the timestamp of
+    // something like the last transition that happened when we
+    // decided the buffer was ready to decode. That might (or might
+    // not) be a better timestamp to use.
+
+    // In practice, (tv,tz) before and after the below gettimeofday
+    // call are not very different.
     
     gettimeofday(tv, tz);
+    printf("tellNTP: system report time = %14lld.%6.6lld seconds\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
 
     ntpmem->receiveTimeStampSec = tv->tv_sec;
     ntpmem->receiveTimeStampUSec = tv->tv_usec;

@@ -406,6 +406,74 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
     exit(0);
   }
 
+/* TODO: check parity here */
+
+  // these parity bits should all have an odd number of 1 bits
+  int p1 = bits[54*2 + 1]
+         + bits[17*2 + 0]
+         + bits[18*2 + 0]
+         + bits[19*2 + 0]
+         + bits[20*2 + 0]
+         + bits[21*2 + 0]
+         + bits[22*2 + 0]
+         + bits[23*2 + 0]
+         + bits[24*2 + 0];
+
+  if(p1 % 2 == 0) {
+    printf("Parity failure, p1 (year)\n");
+    return;
+  }
+
+  int p2 = bits[55*2 + 1]
+         + bits[25*2 + 0]
+         + bits[26*2 + 0]
+         + bits[27*2 + 0]
+         + bits[28*2 + 0]
+         + bits[29*2 + 0]
+         + bits[30*2 + 0]
+         + bits[31*2 + 0]
+         + bits[32*2 + 0]
+         + bits[33*2 + 0]
+         + bits[34*2 + 0]
+         + bits[35*2 + 0];
+
+  if(p2 % 2 == 0) {
+    printf("Parity failure, p2 (month/day)\n");
+    return;
+  }
+
+  /* parity block 3 is used for the day of the week, which I think
+     is not used; so we don't need to check it. */
+  int p3 = bits[56 * 2 + 1]
+         + bits[36 * 2 + 0]
+         + bits[37 * 2 + 0]
+         + bits[38 * 2 + 0];
+
+  if(p3 % 2 == 0) {
+    printf("Parity failure, p3 (day-of-week)\n");
+    return;
+  }
+
+  int p4 = bits[57 * 2 + 1]
+         + bits[39 * 2 + 0]
+         + bits[40 * 2 + 0]
+         + bits[41 * 2 + 0]
+         + bits[42 * 2 + 0]
+         + bits[43 * 2 + 0]
+         + bits[44 * 2 + 0]
+         + bits[45 * 2 + 0]
+         + bits[46 * 2 + 0]
+         + bits[47 * 2 + 0]
+         + bits[48 * 2 + 0]
+         + bits[49 * 2 + 0]
+         + bits[50 * 2 + 0]
+         + bits[51 * 2 + 0];
+
+  if(p4 % 2 == 0) {
+    printf("Parity failure, p4 (hours:minutes)\n");
+    return;
+  }
+
   tellNTP(year, month, day, hour, minute, tv, tz, summertime);
 }
 

@@ -6,7 +6,7 @@ Copyright Ben Clifford and CQX Limited, 2013-2017
 
 * Build the code 
 
-  gcc -o shiftmsf shift.c 
+  make
 
 * Attach clock module to GPIO pin 25
 
@@ -26,9 +26,10 @@ Copyright Ben Clifford and CQX Limited, 2013-2017
 
 * Watch a few minutes for the output to appear.
 
-  You should see the letter P appear every time the LED
-  turns on or off, and after a minute or two if a decode
-  is successful, you should see a timestamp printed.
+  You should see the symbol . appear every time the LED on the
+  clock module turns on or off, and after a minute or two if a decode
+  is successful, you should see a bunch of decoding information,
+  including a timestamp.
 
 * After even more minutes, check ntp.
 

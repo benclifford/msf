@@ -491,8 +491,8 @@ void tellNTP(int year, int month, int day, int hour, int minute, struct timeval 
     if(summertime == 1) {
       clocksec -= 3600;
     }
-    printf("tellNTP: MSF time          = %14lld seconds\n",(long long)clocksec);
-    printf("tellNTP: system edge time  = %14lld.%6.6lld seconds\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
+    printf("tellNTP: MSF time           = %11lld seconds\n",(long long)clocksec);
+    printf("tellNTP: system edge time   = %11lld.%6.6lld seconds\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
 
     //       struct tm {
      //          int tm_sec;         /* seconds */
@@ -523,7 +523,7 @@ void tellNTP(int year, int month, int day, int hour, int minute, struct timeval 
     // call are not very different.
     
     gettimeofday(tv, tz);
-    printf("tellNTP: system report time = %14lld.%6.6lld seconds\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
+    printf("tellNTP: system report time = %11lld.%6.6lld seconds\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
 
     ntpmem->receiveTimeStampSec = tv->tv_sec;
     ntpmem->receiveTimeStampUSec = tv->tv_usec;

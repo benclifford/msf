@@ -97,6 +97,12 @@ void main() {
   ntpmem = getShmTime(2);
   assert(ntpmem!=0);
 
+  printf("Key: \n");
+  printf("  P = main loop\n");
+  printf("  x = poll timeout without input\n");
+  printf("  C = Possible decode\n");
+  printf("  * = Decode inhibition ended\n");
+
   printf("entering infinite loop.\n");
 
 /*
@@ -201,7 +207,7 @@ void main() {
       if(inhibitDecodeFor != 0) {
         inhibitDecodeFor--;
         if(inhibitDecodeFor <= 0) {
-          printf("Decode inhibition ended.\n");
+          printf("*"); fflush(stdout);
           inhibitDecodeFor = 0; // it might have been made negative elsewhere
         }
       } else {
@@ -236,7 +242,7 @@ void checkdecode(struct timeval *tv, struct timezone *tz) {
             numOnesInFirst += (buffer[bp] == '1') ? 1 : 0;
           }
           if(numOnesInFirst > (RPS * 9 / 20 )) { // 450ms worth of ones
-            printf("matched num ones threshold, numOnesInFirst = %d\n", numOnesInFirst);
+            printf("\nmatched num ones threshold, numOnesInFirst = %d\n", numOnesInFirst);
             for(i=0;i<HALFSEC;i++) {
               int bp;
               bp = (HALFSEC + bufoff + i) % BUFSIZE;

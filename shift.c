@@ -388,7 +388,7 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
 
   int summertime = bits[58*2 + 1]; 
 
-  printf("Time now is '%d/%2.2d/%2.2d %2.2d:%2.2d (BST = %d)\n", year, month, day, hour, minute, summertime);
+  printf("Time now is '%d/%2.2d/%2.2d %2.2d:%2.2d %s\n", year, month, day, hour, minute, summertime == 0 ? "GMT" : "BST");
 /*
   printf("day of week (0=sunday) = %d\n", dow);
   printf("hh:mm = %2.2d:%2.2d (%d %d)\n", hour, minute, hour, minute);

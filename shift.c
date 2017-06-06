@@ -10,7 +10,6 @@
 #include <time.h>
 #include <poll.h>
 
-
 // Dave_H off #a&a suggested the shift register
 // approach.
 
@@ -127,22 +126,6 @@ void main() {
     struct timeval tv;
     struct timezone tz;
 
-#define POLLWAIT
-#ifdef POLLHARD
-    while(newtenths == oldtenths) {
-      // this time gets used here to determine if
-      // we should tick, and also later when we decode
-      // because its the time we took the reading for
-      // the last reading of the buffer, which often
-      // (but not in leap seconds cases) will be the
-      // start of the minute just described.
-    
-      gettimeofday(&tv, &tz);
-
-      newtenths = ((long long)tv.tv_sec) * RPS + ((long long)tv.tv_usec)/(1000000/RPS);
-    }
-#endif
-#ifdef POLLWAIT
     int ret = 0;
     printf(".");fflush(stdout);
     while(ret == 0) {
@@ -156,15 +139,9 @@ void main() {
     }
 
     newtenths = ((long long)tv.tv_sec) * RPS + ((long long)tv.tv_usec)/(1000000/RPS);
-#endif
 
     if(newtenths != oldtenths) {
       if(newtenths != oldtenths+1 && oldtenths != -1) {
-#ifdef POLLHARD
-        printf("WARNING: skipped multiple steps. oldtenths = %lld, newtenths = %lld\n",
-          oldtenths, newtenths);
-#endif
-// this expected normal operation in the case of POLLWAIT mode so don't print warnings.
 
         long long error = newtenths - oldtenths - 1; // -1 because we're going to read a bit anyway.
         int i;

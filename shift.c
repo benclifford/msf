@@ -478,11 +478,11 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
 }
 
 void tellNTP(int year, int month, int day, int hour, int minute, struct timeval *tv, struct timezone *tz, int summertime) {
-  printf("Telling NTP\n");
+  printf("tellNTP: Telling ntpd\n");
   assert(ntpmem != 0);
 
-  printf("ntpmem is %p\n", ntpmem);
-  printf("ntpmem->mode = %d\n", ntpmem->mode); 
+  printf("tellNTP: ntpmem is %p\n", ntpmem);
+  printf("tellNTP: ntpmem->mode = %d\n", ntpmem->mode); 
 
   assert(ntpmem->mode == 0);
   // ntpd appears to create the segment and put it in
@@ -496,9 +496,9 @@ void tellNTP(int year, int month, int day, int hour, int minute, struct timeval 
   // is now when this function is called.
 
   if(ntpmem->valid != 0) {
-    printf("There is still a valid result in ntp struct. Skipping update.\n");
+    printf("tellNTP: ntp struct contains a previous result. Skipping update.\n");
   } else {
-    printf("ntp struct contains no valid result, so we can populate it.\n");
+    printf("tellNTP: ntp struct is free, so we can populate it.\n");
 
     // i need to convert MSF time into unix time in seconds. perhaps using mktime
 
@@ -514,8 +514,8 @@ void tellNTP(int year, int month, int day, int hour, int minute, struct timeval 
     if(summertime == 1) {
       clocksec -= 3600;
     }
-    printf("time_t clocksec (from MSF) = %lld seconds\n",(long long)clocksec);
-    printf("time_t clocksec (local)    = %lld . %6.6lld seconds\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
+    printf("tellNTP: MSF unix time    = %14lld seconds\n",(long long)clocksec);
+    printf("tellNTP: system unix time = %14lld.%6.6lld seconds\n",(long long)tv->tv_sec, (long long)tv->tv_usec);
 
     //       struct tm {
      //          int tm_sec;         /* seconds */
@@ -541,6 +541,8 @@ void tellNTP(int year, int month, int day, int hour, int minute, struct timeval 
     ntpmem->receiveTimeStampSec = tv->tv_sec;
     ntpmem->receiveTimeStampUSec = tv->tv_usec;
     ntpmem->valid = 1;
+
+    printf("tellNTP: result delivered to ntpd\n");
   }
 }
 

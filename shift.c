@@ -100,7 +100,9 @@ void main() {
   printf("Key: \n");
   printf("  P = main loop\n");
   printf("  x = poll timeout without input\n");
-  printf("  C = Possible decode\n");
+  printf("  C = Starting decode\n");
+  printf(" X1 = Decode failed: insufficient ones in scan zone\n");
+  printf(" X0 = Decode failed: insufficient zeroes in scan zone\n");
   printf("  * = Decode inhibition ended\n");
 
   printf("entering infinite loop.\n");
@@ -254,7 +256,11 @@ void checkdecode(struct timeval *tv, struct timezone *tz) {
               decode();
               assert(tv!=NULL);
               decodeBCD(tv, tz);
+            } else {
+              printf("X0 ");
             }
+          } else {
+            printf("X1 ");
           }
         }
 }

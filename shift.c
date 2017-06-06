@@ -532,9 +532,10 @@ void tellNTP(int year, int month, int day, int hour, int minute, struct timeval 
     ntpmem->clockTimeStampSec = clocksec;
     ntpmem->clockTimeStampUSec = 0;
 
-// TODO: we'll need these earlier on for the receive time
-//   and need to construct clocktime from the MSF signal
-//   but for now, use this time for everything...
+    // TODO: doing gettimeofday here seems like the wrong
+    // thing to be doing: the receive time stamp should match
+    // up as closely as possible with whichever edge transition
+    // in the input signal is the minute marker.
     
     gettimeofday(tv, tz);
 

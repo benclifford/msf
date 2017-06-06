@@ -348,7 +348,7 @@ int getbit(int secbase, int hundred) {
 
 void decodeBCD(struct timeval *tv, struct timezone *tz) {
   assert(tv!=NULL);
-  printf("Decoding BCD\n");
+  printf("decodeBCD: Decoding\n");
   // BCD year
   int year = 80 * bits[17*2 + 0]
            + 40 * bits[18*2 + 0]
@@ -394,7 +394,7 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
 
   int summertime = bits[58*2 + 1]; 
 
-  printf("Time now is '%d/%2.2d/%2.2d %2.2d:%2.2d %s\n", year, month, day, hour, minute, summertime == 0 ? "GMT" : "BST");
+  printf("decodeBCD: Decoded time is '%d/%2.2d/%2.2d %2.2d:%2.2d %s\n", year, month, day, hour, minute, summertime == 0 ? "GMT" : "BST");
 /*
   printf("day of week (0=sunday) = %d\n", dow);
   printf("hh:mm = %2.2d:%2.2d (%d %d)\n", hour, minute, hour, minute);
@@ -420,7 +420,7 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
          + bits[24*2 + 0];
 
   if(p1 % 2 == 0) {
-    printf("Parity failure, p1 (year)\n");
+    printf("decodeBCD: Parity failure 54B (year)\n");
     return;
   }
 
@@ -438,7 +438,7 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
          + bits[35*2 + 0];
 
   if(p2 % 2 == 0) {
-    printf("Parity failure, p2 (month/day)\n");
+    printf("decodeBCD: Parity failure, 55B (month/day)\n");
     return;
   }
 
@@ -450,7 +450,7 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
          + bits[38 * 2 + 0];
 
   if(p3 % 2 == 0) {
-    printf("Parity failure, p3 (day-of-week)\n");
+    printf("decodeBCD: Parity failure, 56B (day-of-week)\n");
     return;
   }
 
@@ -470,7 +470,7 @@ void decodeBCD(struct timeval *tv, struct timezone *tz) {
          + bits[51 * 2 + 0];
 
   if(p4 % 2 == 0) {
-    printf("Parity failure, p4 (hours:minutes)\n");
+    printf("decodeBCD: Parity failure, 57B (hours:minutes)\n");
     return;
   }
 

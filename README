@@ -1,4 +1,20 @@
+msf
+===
+
+Reads the time from an MSF radio receiver and feeds it into
+an NTP daemon running on a Raspberry Pi.
+
 Copyright Ben Clifford and CQX Limited, 2013-2017
+
+Installing
+===============
+
+* Get the hardware:
+
+  * A Raspberry Pi 2
+
+  * (the right kind of) MSF radio board.
+    I use a SYM-RFT-60 from Symtrik.
 
 * Get the code
 
@@ -8,9 +24,9 @@ Copyright Ben Clifford and CQX Limited, 2013-2017
 
   make
 
-* Attach clock module to GPIO pin 25
+* Attach the output of the clock module to GPIO pin 25
 
-* Configure ntpd
+* Configure ntpd:
 
   Add these lines to /etc/ntpd.conf and restart ntpd:
 
@@ -20,7 +36,7 @@ Copyright Ben Clifford and CQX Limited, 2013-2017
   and restart ntpd:
   sudo /etc/init.d/ntp restart
 
-* Start the polling program
+* Start msf:
 
   sudo ./start.sh
 
@@ -31,6 +47,14 @@ Copyright Ben Clifford and CQX Limited, 2013-2017
   is successful, you should see a bunch of decoding information,
   including a timestamp.
 
-* After even more minutes, check ntp.
+* Move the radio board/antenna around until you get a decent signal:
+  there should be about one pulse per second visible in the onboard LED
+  rather than nothing, or random flickering.
+
+* After even more minutes, check ntp is receiving the time from msf.
 
   ntpq -p
+
+  ...
+  *SHM(2)          .MSF.            0 l   64   64  317    0.000  -18.261   8.695
+  ...

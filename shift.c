@@ -92,7 +92,7 @@ volatile struct shmTime *ntpmem;
 void main() {
   printf("msf shift.c\n");
 
-  printf("getting NTP shm\n");
+  printf("main: getting NTP shm\n");
   ntpmem = getShmTime(2);
   assert(ntpmem!=0);
 
@@ -103,8 +103,6 @@ void main() {
   printf(" X0 = Decode failed: insufficient zeroes in scan zone\n");
   printf(" X1 = Decode failed: insufficient ones in scan zone\n");
   printf("  * = Decode inhibition ended\n");
-
-  printf("entering infinite loop.\n");
 
 /*
   struct timeval old_tv;
@@ -121,6 +119,8 @@ void main() {
   int fd;
   fd=fileno(fp);
  
+  printf("main: entering main loop\n");
+
   while(1==1) {
     long long newtenths = oldtenths;
     struct timeval tv;
@@ -221,15 +221,15 @@ void checkdecode(struct timeval *tv, struct timezone *tz) {
             numOnesInFirst += (buffer[bp] == '1') ? 1 : 0;
           }
           if(numOnesInFirst > (RPS * 9 / 20 )) { // 450ms worth of ones
-            printf("\nmatched num ones threshold, numOnesInFirst = %d\n", numOnesInFirst);
+            printf("\ncheckdecode: matched num ones threshold, numOnesInFirst = %d\n", numOnesInFirst);
             for(i=0;i<HALFSEC;i++) {
               int bp;
               bp = (HALFSEC + bufoff + i) % BUFSIZE;
               numZeroesInSecond += (buffer[bp] == '0') ? 1 : 0;
             }
-            printf("numZeroesInSecond = %d\n", numZeroesInSecond);
+            printf("checkdecode: numZeroesInSecond = %d\n", numZeroesInSecond);
             if(numZeroesInSecond > (RPS * 9 / 20)) {
-              printf("Matched num zeroes threshold\n");
+              printf("checkdecode: Matched num zeroes threshold\n");
               decode();
               assert(tv!=NULL);
               decodeBCD(tv, tz);
@@ -250,7 +250,7 @@ int getbit(int secbase, int hundred);
 // at the buf offset.
 // its going to decode into 120 bits, roughly. (2 per sec)
 void decode() {
-  printf("Decoding\n");
+  printf("decode: Decoding\n");
   int sec;
   for(sec = 0; sec < 60; sec++) {
 #ifdef VERBOSE

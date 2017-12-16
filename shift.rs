@@ -1,9 +1,28 @@
 use std::fs::File; // QUESTION/DISCUSSION: why is File capitalised but others aren't? Because it's a trait, I guess?
 use std::os::unix::io::AsRawFd;
 use std::io::Read;
+use std::io::Seek; // QUESTION/DISCUSSION: rustc is good at suggesting traits to import
+use std::io::SeekFrom;
 // use std::process; // was used for exit, but I'm not exiting...
 
 extern crate time;
+
+
+// QUESTION/DISCUSSION: macros are distinct syntax-wise from
+// functions: they always have ! on the end; woo woo pattern matching!
+// though this is quite a different language to learn. Basic ideas
+// familiar from Haskell though. Some of it has the cursedness of
+// regexp "concise" syntax.
+macro_rules! dbg {
+
+ ($($x:expr),*)  => {{ 
+    print!("debug: ");
+    println!($($x),*);
+ }};
+
+}
+
+
 
 // QUESTION/DISCUSSION:
 // it was a bit of a mission to find poll() in libc
@@ -28,7 +47,7 @@ fn main() {
 
   println!("TODO: get NTP shm");
 
-  println!("debug: opening GPIO");
+  dbg!("opening GPIO {}", "foo");
 
   let gpio_filename = "/sys/class/gpio/gpio25/value";
   // let gpio_filename = "./test";
@@ -49,7 +68,7 @@ fn main() {
   let mut oldtenths : i64 = TENTHS_INVALID_SENTINEL;
   
 
-  println!("debug: done initialising");
+  dbg!("done initialising");
 
   loop {
 
@@ -75,7 +94,7 @@ fn main() {
     let edge_time = time::get_time();
     // ^ Get this time as close to the read as possible, because
     //   that should be as close to the actual edge as possible.
-    println!("debug: edge_time: {} . {}", edge_time.sec, edge_time.nsec);
+    println!("edge_time: {} . {}", edge_time.sec, edge_time.nsec);
 
     // even though we time-out here, it is safe to continue with the
     // rest of the processing: we'll treat it as two (or more)
@@ -95,7 +114,7 @@ fn main() {
   // if we've advanced more than one slot since the last edge
     if newtenths != oldtenths && oldtenths != TENTHS_INVALID_SENTINEL {
       let numslots : i64 = newtenths - oldtenths - 1;
-      println!("debug: Will fill in {} slots", numslots);
+      dbg!("debug: Will fill in {} slots", numslots);
       assert!( numslots <= (BUFSIZE as i64) ); // if our poll timeout is more than a minute, we might end up with more than one buffer worth to fill - so need to be sure that the poll timeout is less than a minute. it is 5s at the moment, which is plenty.
 // QUESTION/DISCUSSION: this gives a compiler warning because
 // 'i' is unused. What is the correct way to do a loop n times?
@@ -107,11 +126,19 @@ fn main() {
   println!("TODO: MAINLOOP: checkdecode");
     }
     oldtenths = newtenths;
-  println!("TODO: MAINLOOP: read pulse and store for next loop");
-  // need to seek back to 0 for real GPIO
+
+    dbg!("seek in GPIO file to zero");
+
+    // QUESTION/DISCUSSION: rustc does a good job warning about
+    // unused return value here if expect() is not used to capture
+    // it.
+    f.seek(SeekFrom::Start(0)).expect("seeking to start of GPIO file");
+
+    dbg!("reading a byte from GPIO");
     let mut gpio_value = [0; 1]; // TODO: what does [0;1] mean?
     f.read_exact(&mut gpio_value).expect("reading a byte from GPIO");
-    println!("debug: read from gpio: byte {}", gpio_value[0]);
+    dbg!("read from gpio: value {}", gpio_value[0]);
+
     oldc=gpio_value[0];
 
   println!("TODO: MAINLOOP: handle inhibit decode"); 

@@ -1,6 +1,8 @@
 use std::fs::File; // QUESTION/DISCUSSION: why is File capitalised but others aren't? Because it's a trait, I guess?
 use std::os::unix::io::AsRawFd;
+use std::io; // for flushing stdout
 use std::io::Read;
+use std::io::Write; // for flushing stdout
 use std::io::Seek; // QUESTION/DISCUSSION: rustc is good at suggesting traits to import
 use std::io::SeekFrom;
 // use std::process; // was used for exit, but I'm not exiting...
@@ -13,13 +15,43 @@ extern crate time;
 // though this is quite a different language to learn. Basic ideas
 // familiar from Haskell though. Some of it has the cursedness of
 // regexp "concise" syntax.
+// Better syntax integration that a cpp preprocessor.
+
+// frustrates me a bit that the inputs don't look as close to
+// function invocations as with cpp macros, but the syntax is
+// more flexible.
+
+// specific awkwardnesses: how to take pass multiple arguments
+// as per dbg!
+
+// how to take exactly two arguments -eg progress!
+
 macro_rules! dbg {
 
  ($($x:expr),*)  => {{ 
-    print!("debug: ");
-    println!($($x),*);
+//    print!("debug: ");
+//    println!($($x),*);
  }};
 
+}
+
+macro_rules! TODO {
+
+ ($($x:expr),*)  => {{ 
+//    print!("debug: ");
+//    println!($($x),*);
+ }};
+
+}
+
+// QUESTION/DISCUSSION: what a struggle to get a macro that
+// takes two parameters... had a look at assert_eq! source to
+// see what they do
+macro_rules! progress {
+  ( $symbol:expr, $longmsg:expr ) => {
+    println!("Progress: ({}) {}", $symbol, $longmsg);
+    io::stdout().flush().ok().expect("flushing stdout for progress log"); 
+  };
 }
 
 
@@ -45,7 +77,7 @@ const TENTHS_INVALID_SENTINEL : i64 = -1;
 fn main() {
   print_banner();
 
-  println!("TODO: get NTP shm");
+  TODO!("get NTP shm");
 
   dbg!("opening GPIO {}", "foo");
 
@@ -72,10 +104,7 @@ fn main() {
 
   loop {
 
-    // QUESTION/DISCUSSION: turn this into a macro that is
-    // a long description when in debug mode and a single character
-    // when in non-debug mode.
-    print!("."); // indicate polling
+    progress!(".", "poll start");
 
     let fd = f.as_raw_fd();
 
@@ -94,7 +123,7 @@ fn main() {
     let edge_time = time::get_time();
     // ^ Get this time as close to the read as possible, because
     //   that should be as close to the actual edge as possible.
-    println!("edge_time: {} . {}", edge_time.sec, edge_time.nsec);
+    dbg!("edge_time: {} . {}", edge_time.sec, edge_time.nsec);
 
     // even though we time-out here, it is safe to continue with the
     // rest of the processing: we'll treat it as two (or more)
@@ -103,7 +132,7 @@ fn main() {
       print!("T");
     }
 
-  println!("TODO: MAINLOOP: figure out pulse len and fill in");
+  TODO!("MAINLOOP: figure out pulse len and fill in");
 
   // QUESTION/DISCUSSION: there are too many casts here for my taste.
   // - the C version has some long long casts at the equivalent place
@@ -123,7 +152,7 @@ fn main() {
         bufoff = (bufoff+1) % BUFSIZE;
       }
 
-  println!("TODO: MAINLOOP: checkdecode");
+  TODO!("MAINLOOP: checkdecode");
     }
     oldtenths = newtenths;
 
@@ -141,7 +170,7 @@ fn main() {
 
     oldc=gpio_value[0];
 
-  println!("TODO: MAINLOOP: handle inhibit decode"); 
+  TODO!("MAINLOOP: handle inhibit decode"); 
   }
 }
 

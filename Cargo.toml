@@ -1,0 +1,12 @@
+[package]
+name = "msf"
+version = "0.1.0"
+authors = ["Ben Clifford <benc@hawaga.org.uk>"]
+
+[dependencies]
+time = "*"
+libc = "*"
+
+[[bin]]
+path = "./shift.rs"
+name = "shift"

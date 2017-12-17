@@ -49,7 +49,8 @@ macro_rules! TODO {
 // see what they do
 macro_rules! progress {
   ( $symbol:expr, $longmsg:expr ) => {
-    println!("Progress: ({}) {}", $symbol, $longmsg);
+    // println!("Progress: ({}) {}", $symbol, $longmsg);
+    print!($symbol);
     io::stdout().flush().ok().expect("flushing stdout for progress log"); 
   };
 }
@@ -68,7 +69,7 @@ extern crate libc;
 
 // The number of readings per second that will go into the
 // shift buffer.
-const RPS: usize = 500;
+const RPS: usize = 1000; // so that things are sized as ms
 const BUFSIZE: usize = RPS * 60;
 
 const BUF_INVALID : u8 = 2;
@@ -85,17 +86,13 @@ fn main() {
   // let gpio_filename = "./test";
   let mut f = File::open(gpio_filename).expect("opening GPIO port");
 
-  // TODO: this will all be mutable one way or another
-  // but leave them non-mutable for now to see where rust decides
-  // I need to mutate them.
-
   // QUESTION/DISCUSSION:
   // Vec is a growable vector: we don't need that expandability...
   // so what is a better format? A regular array?
   // Also, what is this "mut" describing? the "buffer" the
   //   reference can change? or the heap content? or both?
   let mut buffer : Vec<u8> = vec![BUF_INVALID; BUFSIZE];
-  let mut bufoff = 0;
+  let mut bufoff : usize = 0;
   let mut oldc : u8 = BUF_INVALID;
   let mut oldtenths : i64 = TENTHS_INVALID_SENTINEL;
   
@@ -129,10 +126,8 @@ fn main() {
     // rest of the processing: we'll treat it as two (or more)
     //  '0's in a row, or two '1's in a row.
     if pollret == 0 {
-      print!("T");
+      progress!("T", "Timeout polling for GPIO pin edge");
     }
-
-  TODO!("MAINLOOP: figure out pulse len and fill in");
 
   // QUESTION/DISCUSSION: there are too many casts here for my taste.
   // - the C version has some long long casts at the equivalent place
@@ -152,9 +147,21 @@ fn main() {
         bufoff = (bufoff+1) % BUFSIZE;
       }
 
-  TODO!("MAINLOOP: checkdecode");
+      print!("{}/{} ", numslots, oldc as char);
+      io::stdout().flush().ok().expect("flushing stdout for progress log"); 
+
+      // QUESTION/DISCUSSION: check_decode is called in places that
+      // I don't fully understand - twice...
+      // for now I'll keep that because that's how I do things in the
+      // C version.
+      check_decode(&buffer, bufoff);
+
     }
     oldtenths = newtenths;
+ 
+    // QUESTION/DISCUSSION: should wrap buffer and bufof into
+    // a struct (or perhaps something with traits...) 
+    check_decode(&buffer, bufoff);
 
     dbg!("seek in GPIO file to zero");
 
@@ -184,4 +191,21 @@ fn print_banner() {
   println!("  X0 = decode failed: insufficient zeroes in scan zone");
   println!("  X1 = decode failed: insufficient ones in scan zone");
   println!("  * = decode inhibition ended");
+}
+
+// when check_decode starts, bufoff points at the 
+// bit received a minute ago, at the start of the buffer.
+fn check_decode(buffer : &Vec<u8>, bufoff : usize) {
+  if buffer[bufoff] != ('1' as u8) {
+    return;
+  }
+
+  TODO!("another shortcut fast return without decoding is implemented in C code, but isn't necessary for actual decoding");
+
+  decode(&buffer, bufoff);
+}
+
+// This decodes buffer into 120 bits.
+fn decode(buffer : &Vec<u8>, bufoff : usize) {
+
 }

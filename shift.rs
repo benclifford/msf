@@ -41,8 +41,8 @@ use time::Duration;
 macro_rules! dbg {
 
  ($($x:expr),*)  => {{ 
-    print!("debug: ");
-    println!($($x),*);
+//    print!("debug: ");
+//    println!($($x),*);
  }};
 
 }
@@ -61,8 +61,8 @@ macro_rules! TODO {
 // see what they do
 macro_rules! progress {
   ( $symbol:expr, $longmsg:expr ) => {
-    println!("Progress: ({}) {}", $symbol, $longmsg);
-    // print!($symbol);
+    // println!("Progress: ({}) {}", $symbol, $longmsg);
+    print!("{}", $symbol);
     io::stdout().flush().ok().expect("flushing stdout for progress log"); 
   };
 }
@@ -115,7 +115,7 @@ struct edge {
 impl Iterator for edge_detector {
   type Item = edge;
   fn next(&mut self) -> Option<edge> {
-    dbg!("edge_detector.next starting");
+    progress!(".", "edge_detector.next waiting for an edge");
 
     let fd = self.file.as_raw_fd();
 
@@ -234,12 +234,31 @@ impl<'a> Iterator for pulse_detector<'a> {
     };
 
     dbg!("Pulse level {}, length {} rounded to {}", p.level, d, p.duration);
+    progress!(p.duration, "logging duration symbol");
     self.last_edge = next;
     let p_opt = Some(p);
     return p_opt;
   }
 
 }
+
+// TODO: a symbol decoder
+// sync to second boundaries
+// takes in a pulse iterator
+// emits one of 5 states:
+//  S for minute sync symbol
+//  and 4 other states for a regular 2-bit token
+// so perhaps code this as a u8: 0ab and 100
+// and represent it in the short output as those numbers
+// as a single digit
+
+// TODO: symbol decoder->whole minute bit array iterator
+// accumulate a minutes worth of symbols - which should be
+// 60 symbols (except at leap second time) - and store them
+// in a bit array
+
+// whole minute bit array -> decoded time
+// do the BCD conversions etc. maybe do parity here too
 
 fn main() {
   print_banner();

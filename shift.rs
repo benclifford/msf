@@ -4,6 +4,11 @@
 // QUESTION/DISUCSSION: I keep forgetting the ; on the end of lines
 // - more generally, this doesn't use indentation based scoping.
 
+// QUESTION/DISCUSSION: I use Option as part of Iterator a lot.
+// but my streams are infinite - they never end, so that Option
+// just gets unwrapped to an impossible error. Probably I could
+// replace Iterator with an infinite-stream-like trait.
+
 use std::fs::File; // QUESTION/DISCUSSION: why is File capitalised but others aren't? Because it's a trait, I guess?
 use std::os::unix::io::AsRawFd;
 use std::io; // for flushing stdout
@@ -38,11 +43,12 @@ use time::Duration;
 
 // how to take exactly two arguments -eg progress!
 
+// TODO: commandline optionalness for debug output
 macro_rules! dbg {
 
  ($($x:expr),*)  => {{ 
-//    print!("debug: ");
-//    println!($($x),*);
+    // print!("debug: ");
+    // println!($($x),*);
  }};
 
 }
@@ -50,8 +56,8 @@ macro_rules! dbg {
 macro_rules! TODO {
 
  ($($x:expr),*)  => {{ 
-    print!("TODO: ");
-    println!($($x),*);
+    // print!("TODO: ");
+    // println!($($x),*);
  }};
 
 }
@@ -242,7 +248,9 @@ impl<'a> Iterator for pulse_detector<'a> {
 
 }
 
-// TODO: a symbol decoder
+
+// One-symbol-per-second decoder
+
 // sync to second boundaries
 // takes in a pulse iterator
 // emits one of 5 states:
@@ -251,6 +259,116 @@ impl<'a> Iterator for pulse_detector<'a> {
 // so perhaps code this as a u8: 0ab and 100
 // and represent it in the short output as those numbers
 // as a single digit
+
+struct symbol_decoder<'lifetime> {
+  pd : &'lifetime mut pulse_detector<'lifetime>
+}
+
+
+// QUESTION/DISCUSSION: dear god the lifetime annotations. it's
+// interesting to see them as type parameters though.
+fn init_symbol_decoder<'l>(mut p : &'l mut pulse_detector<'l>) -> symbol_decoder<'l> {
+  dbg!("symbol decoder init");
+  
+  return symbol_decoder {
+    pd: p
+  }
+}
+
+impl<'lifetime> Iterator for symbol_decoder<'lifetime> {
+  type Item = u8;
+  fn next(&mut self) -> Option<u8> {
+    dbg!("symbol_decoder.next");
+    // assume that we're at a long boundary from a previous
+    // iteration, or if this is the start, we'll sync as part
+    // of what follows.
+
+    // accumulate symbol sequences terminated by a 0-bit >= 5
+    // in length.
+    // use a 5-element dictionary to turn that into the
+    // appropriate output symbol.
+    // the maximum sequence length is 4 (1-1-1-7)
+    // if we go over that, we've hit a sync error.
+    // this pulse is either something to accumulate
+    // or a terminator pulse
+
+    // pulse length buffer - with enough capacity to hold the
+    // expected sequence length
+    let mut pulse_buffer : Vec<u8> = Vec::with_capacity(5);
+
+    while {
+      let next_pulse_opt : Option<pulse> = self.pd.next();
+
+      let next_pulse = match next_pulse_opt {
+        None => panic!("next_pulse_opt was None"),
+        Some(x) => x
+      };
+
+      // accumulate pulse into buffer
+      pulse_buffer.push(next_pulse.duration);
+
+      TODO!("fail here if the buffer is getting too long - potential denial-of-service memory exhaustion if we inject only white noise in");
+
+      next_pulse.duration < 5 || next_pulse.level != 0
+      }
+    {}
+
+    // if it's a terminator pulse, we move onto the
+    // symbol lookup stage.
+    progress!("/", "looking up symbol");
+
+    dbg!("One-second pulse buffer is {} symbols long", pulse_buffer.len());
+
+    // now an explicit enumeration of the valid possibilities
+    // checking only length, not polarity, as there is no ambiguity
+    // although it might be a bit more resilient to do so.
+
+    // 5-5  minute marker
+    if  pulse_buffer.len() == 2
+     && pulse_buffer[0] == 5
+     && pulse_buffer[1] == 5 {
+      progress!("M", "Minute marker decoded");
+      return Some(4); // 4 == MINUTE START SYMBOL
+    }  
+
+    // 1-9  double 0
+    if  pulse_buffer.len() == 2
+     && pulse_buffer[0] == 1 
+     && pulse_buffer[1] == 9 {
+      progress!("0", "A=0, B=0");
+      return Some(0); 
+    }  
+
+    // 1-1-1-7  double 01 (a=0, b=1)
+    if  pulse_buffer.len() == 4
+     && pulse_buffer[0] == 1 
+     && pulse_buffer[1] == 1 
+     && pulse_buffer[2] == 1 
+     && pulse_buffer[3] == 7 {
+      progress!("1", "A=0, B=1");
+      return Some(1); 
+    }  
+ 
+    // 2-8  double 10 (a=1, b=0)
+    if  pulse_buffer.len() == 2
+     && pulse_buffer[0] == 2 
+     && pulse_buffer[1] == 8 {
+      progress!("2", "A=1, B=0");
+      return Some(2); 
+    }  
+
+    // 3-7  double 1
+    if  pulse_buffer.len() == 2
+     && pulse_buffer[0] == 3 
+     && pulse_buffer[1] == 7 {
+      progress!("3", "A=1, B=1");
+      return Some(3); 
+    }  
+ 
+    progress!("x","unrecognised one-second symbol");     
+    return Some(8); // 8 == INVALID
+  }
+}
 
 // TODO: symbol decoder->whole minute bit array iterator
 // accumulate a minutes worth of symbols - which should be
@@ -268,8 +386,11 @@ fn main() {
 
   let mut pulse_detector = init_pulse_detector(&mut edge_detector);
 
+  let mut symbol_decoder = init_symbol_decoder(&mut pulse_detector);
+
   loop {
-    pulse_detector.next();
+    progress!(">", "start of main infinite loop iteration");
+    symbol_decoder.next();
   }
 
 /*

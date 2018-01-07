@@ -104,6 +104,9 @@ struct edge_detector {
   file : File   // the file handle for the GPIO pin  
 }
 
+// QUESTION/DISCUSSION: rust style looks like the init_
+// functions should be done as edge_detector::new 
+// or something like that. A smart-constructor style.
 fn init_edge_detector(filename : &str) -> edge_detector {
   dbg!("edge_detector: initialising with pin {}", filename);
   let mut fx = File::open(filename).expect("opening GPIO port");
@@ -304,12 +307,18 @@ impl<'lifetime> Iterator for symbol_decoder<'lifetime> {
         Some(x) => x
       };
 
-      // accumulate pulse into buffer
-      pulse_buffer.push(next_pulse.duration);
+      // accumulate pulse into buffer, with software debounce
+      if(next_pulse.duration > 0) {
+        pulse_buffer.push(next_pulse.duration);
+      }
 
-      TODO!("fail here if the buffer is getting too long - potential denial-of-service memory exhaustion if we inject only white noise in");
+      // also stop here if the buffer is getting too long 
+      // - potential denial-of-service memory exhaustion
+      // if we inject only short pulses in. so a bunch of short
+      // pulses will generate a bunch of short unrecognised symbols.
 
-      next_pulse.duration < 5 || next_pulse.level != 0
+      (next_pulse.duration < 5 || next_pulse.level != 0)
+        && pulse_buffer.len() < 5
       }
     {}
 

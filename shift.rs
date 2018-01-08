@@ -104,8 +104,8 @@ struct edge_detector {
 // or something like that. A smart-constructor style.
 fn init_edge_detector(filename : &str) -> edge_detector {
   dbg!("edge_detector: initialising with pin {}", filename);
-  let mut fx = File::open(filename).expect("opening GPIO port");
-  let mut ed = edge_detector {
+  let fx = File::open(filename).expect("opening GPIO port");
+  let ed = edge_detector {
     file: fx
   };
   return ed;

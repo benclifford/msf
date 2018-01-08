@@ -114,7 +114,7 @@ void main() {
   assert(oldc == 'X' || oldc == '1' || oldc == '0');
 
   FILE *fp;
-  fp = fopen("/sys/class/gpio/gpio25/value","r");
+  fp = fopen("/sys/class/gpio/gpio12/value","r");
 
   int fd;
   fd=fileno(fp);

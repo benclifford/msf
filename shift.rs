@@ -87,11 +87,6 @@ extern crate libc;
 
 // QUESTION/DISCUSSION: Haskell style ":" meaning "has type"
 
-// The number of readings per second that will go into the
-// shift buffer.
-const RPS: usize = 1000; // so that things are sized as ms
-const BUFSIZE: usize = RPS * 60;
-
 const BUF_INVALID : u8 = 2;
 const TENTHS_INVALID_SENTINEL : i64 = -1;
 

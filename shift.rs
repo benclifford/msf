@@ -308,7 +308,7 @@ impl<'lifetime> Iterator for SymbolDecoder<'lifetime> {
       };
 
       // accumulate pulse into buffer, with software debounce
-      if(next_pulse.duration > 0) {
+      if next_pulse.duration > 0 {
         pulse_buffer.push(next_pulse.duration);
       }
 

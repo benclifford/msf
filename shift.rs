@@ -187,8 +187,8 @@ impl Iterator for EdgeDetector {
 // mutate it so it needs to be mutable. and in a struct, we have
 // to put in a lifetime. There is some lifetime inference going on
 // somewhere (see: Lifetime Elision) to mean that an instance of
-// EdgeDetector has the same lifetime as pulse_detector.
-struct pulse_detector<'lifetime> {
+// EdgeDetector has the same lifetime as PulseDetector.
+struct PulseDetector<'lifetime> {
   ed : &'lifetime mut EdgeDetector,
   last_edge : edge
   // QUESTION/DISCUSSION: we've got a Maybe type... called Option
@@ -200,25 +200,25 @@ struct pulse {
   duration: u8 // in units of 0.1s
 }
 
-fn init_pulse_detector(mut e : &mut EdgeDetector) -> pulse_detector {
-  dbg!("pulse_detector: init");
+fn init_pulse_detector(mut e : &mut EdgeDetector) -> PulseDetector {
+  dbg!("PulseDetector: init");
   let next_edge_opt = e.next();
   let next_edge = match next_edge_opt {
     Some(x) => x,
     None => panic!("wasn't expecting edge detector to end")
   };
-  return pulse_detector {
+  return PulseDetector {
     ed: e,
     last_edge: next_edge
   };
 }
 
 // QUESTION/DISCUSSION: impl is like "instance" in Haskell.
-impl<'a> Iterator for pulse_detector<'a> {
+impl<'a> Iterator for PulseDetector<'a> {
 
   type Item = pulse; // QUESTION/DISCUSSION: associated type like in Haskell advanced typeclasses
   fn next(&mut self) -> Option<pulse> {
-    dbg!("pulse_detector.next"); 
+    dbg!("PulseDetector.next"); 
 
     let new_edge = self.ed.next();
     let next = match new_edge {
@@ -259,13 +259,13 @@ impl<'a> Iterator for pulse_detector<'a> {
 // as a single digit
 
 struct SymbolDecoder<'lifetime> {
-  pd : &'lifetime mut pulse_detector<'lifetime>
+  pd : &'lifetime mut PulseDetector<'lifetime>
 }
 
 
 // QUESTION/DISCUSSION: dear god the lifetime annotations. it's
 // interesting to see them as type parameters though.
-fn init_symbol_decoder<'l>(mut p : &'l mut pulse_detector<'l>) -> SymbolDecoder<'l> {
+fn init_symbol_decoder<'l>(mut p : &'l mut PulseDetector<'l>) -> SymbolDecoder<'l> {
   dbg!("symbol decoder init");
   
   return SymbolDecoder {

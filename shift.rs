@@ -95,17 +95,17 @@ const GPIO_FILENAME : &'static str = "/sys/class/gpio/gpio12/value";
 
 /* encapsulates the state needed for edge-detecting on a GPIO
    pin */
-struct edge_detector {
+struct EdgeDetector {
   file : File   // the file handle for the GPIO pin  
 }
 
 // QUESTION/DISCUSSION: rust style looks like the init_
-// functions should be done as edge_detector::new 
+// functions should be done as EdgeDetector::new 
 // or something like that. A smart-constructor style.
-fn init_edge_detector(filename : &str) -> edge_detector {
+fn init_edge_detector(filename : &str) -> EdgeDetector {
   dbg!("edge_detector: initialising with pin {}", filename);
   let fx = File::open(filename).expect("opening GPIO port");
-  let ed = edge_detector {
+  let ed = EdgeDetector {
     file: fx
   };
   return ed;
@@ -116,15 +116,15 @@ struct edge {
   timestamp : Timespec
 }
 
-impl Iterator for edge_detector {
+impl Iterator for EdgeDetector {
   type Item = edge;
   fn next(&mut self) -> Option<edge> {
-    progress!(".", "edge_detector.next waiting for an edge");
+    progress!(".", "EdgeDetector.next waiting for an edge");
 
     let fd = self.file.as_raw_fd();
 
     while {
-    dbg!("edge_detector.next start inner loop");
+    dbg!("EdgeDetector.next start inner loop");
     let mut pfd = libc::pollfd {
         fd: fd,
         events: libc::POLLPRI,
@@ -156,7 +156,7 @@ impl Iterator for edge_detector {
     // it.
     self.file.seek(SeekFrom::Start(0)).expect("seeking to start of GPIO file");
 
-    dbg!("edge_detector.next reading a byte from GPIO");
+    dbg!("EdgeDetector.next reading a byte from GPIO");
     let mut gpio_value = [0; 1]; // TODO: what does [0;1] mean?
     self.file.read_exact(&mut gpio_value).expect("reading a byte from GPIO");
 
@@ -164,8 +164,8 @@ impl Iterator for edge_detector {
     // ^ Get this time as close to the read as possible, because
     //   that should be as close to the actual edge as possible.
 
-    dbg!("edge_detector.next read from gpio: value {}", gpio_value[0]);
-    dbg!("edge_detector.next, edge time is {} . {}", edge_time.sec, edge_time.nsec);
+    dbg!("EdgeDetector.next read from gpio: value {}", gpio_value[0]);
+    dbg!("EdgeDetector.next, edge time is {} . {}", edge_time.sec, edge_time.nsec);
 
 
     // case looks more like haskell pattern matching than C `case`.
@@ -175,7 +175,7 @@ impl Iterator for edge_detector {
       _ => panic!("Unrecognised symbol from GPIO")
     };
 
-    dbg!("edge_detector.next done");
+    dbg!("EdgeDetector.next done");
     return Some(edge {
         level: new_level,
         timestamp: edge_time
@@ -187,9 +187,9 @@ impl Iterator for edge_detector {
 // mutate it so it needs to be mutable. and in a struct, we have
 // to put in a lifetime. There is some lifetime inference going on
 // somewhere (see: Lifetime Elision) to mean that an instance of
-// edge_detector has the same lifetime as pulse_detector.
+// EdgeDetector has the same lifetime as pulse_detector.
 struct pulse_detector<'lifetime> {
-  ed : &'lifetime mut edge_detector,
+  ed : &'lifetime mut EdgeDetector,
   last_edge : edge
   // QUESTION/DISCUSSION: we've got a Maybe type... called Option
 }
@@ -200,7 +200,7 @@ struct pulse {
   duration: u8 // in units of 0.1s
 }
 
-fn init_pulse_detector(mut e : &mut edge_detector) -> pulse_detector {
+fn init_pulse_detector(mut e : &mut EdgeDetector) -> pulse_detector {
   dbg!("pulse_detector: init");
   let next_edge_opt = e.next();
   let next_edge = match next_edge_opt {

@@ -95,7 +95,7 @@ const BUFSIZE: usize = RPS * 60;
 const BUF_INVALID : u8 = 2;
 const TENTHS_INVALID_SENTINEL : i64 = -1;
 
-const GPIO_FILENAME : &'static str = "/sys/class/gpio/gpio25/value";
+const GPIO_FILENAME : &'static str = "/sys/class/gpio/gpio12/value";
 
 
 /* encapsulates the state needed for edge-detecting on a GPIO
@@ -263,25 +263,25 @@ impl<'a> Iterator for pulse_detector<'a> {
 // and represent it in the short output as those numbers
 // as a single digit
 
-struct symbol_decoder<'lifetime> {
+struct SymbolDecoder<'lifetime> {
   pd : &'lifetime mut pulse_detector<'lifetime>
 }
 
 
 // QUESTION/DISCUSSION: dear god the lifetime annotations. it's
 // interesting to see them as type parameters though.
-fn init_symbol_decoder<'l>(mut p : &'l mut pulse_detector<'l>) -> symbol_decoder<'l> {
+fn init_symbol_decoder<'l>(mut p : &'l mut pulse_detector<'l>) -> SymbolDecoder<'l> {
   dbg!("symbol decoder init");
   
-  return symbol_decoder {
+  return SymbolDecoder {
     pd: p
   }
 }
 
-impl<'lifetime> Iterator for symbol_decoder<'lifetime> {
+impl<'lifetime> Iterator for SymbolDecoder<'lifetime> {
   type Item = u8;
   fn next(&mut self) -> Option<u8> {
-    dbg!("symbol_decoder.next");
+    dbg!("SymbolDecoder.next");
     // assume that we're at a long boundary from a previous
     // iteration, or if this is the start, we'll sync as part
     // of what follows.

@@ -47,8 +47,8 @@ use time::Duration;
 macro_rules! dbg {
 
  ($($x:expr),*)  => {{ 
-    // print!("debug: ");
-    // println!($($x),*);
+   //  print!("debug: ");
+   //  println!($($x),*);
  }};
 
 }
@@ -437,6 +437,8 @@ impl<'lifetime> Iterator for MinuteDecoder<'lifetime> {
       syms[offset] = self.sd.next();
       progress!("+", "read symbol in minute decoder");
     }
+
+
     progress!("*", "read a minute-sequence in minute decoder");
 
     // TODO: might want to verify in this decoder, or might
@@ -446,13 +448,235 @@ impl<'lifetime> Iterator for MinuteDecoder<'lifetime> {
   }
 }
 
-
-
 // whole minute bit array -> decoded time
 // do the BCD conversions etc. maybe do parity here too
 
+// The structure of a data-carrying symbol. This cannot
+// represent the message start symbol or the invalid pseudo-symbol.
+// QUESTION/DISCUSSION: Copy,Clone lets us duplicate values of this
+// struct so they can be used more like literals - i.e. in the 
+// initialisaion of decodedSyms.
+/*
+#[derive(Copy, Clone)]
+struct ABBit {
+  a : bool,
+  b : bool
+} */
+
+// this separates out the A and B bits into separate arrays
+// because in the protocol, they're used that way more often.
+
+// QUESTION/DISCUSSION: I'd rather have a numeric bit type here.
+// I could use bool but it doesn't get up-casted magically to
+// a large numeric type when I try to do maths on it.
+// u8 allows that but also allows the data structure to contain
+// non-type-checked wrong values. Note difference between the
+// datatypes of a,b and of valid, because of their different uses.
+// (which is probably a good thing)
+struct MinuteData {
+  a : [u8; 60],
+  b : [u8; 60],
+  valid : [bool; 60]
+}
+
+struct ABDecoder<'l> {
+  md : MinuteDecoder<'l>
+}
+
+fn init_ab_decoder<'l>(mut p : MinuteDecoder<'l>) -> ABDecoder<'l> {
+  dbg!("AB decoder init");
+ 
+  return ABDecoder {
+    md: p
+  }
+}
+
+impl<'l> Iterator for ABDecoder<'l> {
+  type Item = MinuteData;
+  
+  fn next(&mut self) -> Option<MinuteData> {
+
+    // haskell/functional style would initialise this array as a map result
+    // right away rather than iterating over it. TODO
+    let mut decoded_syms = MinuteData { a: [0; 60],
+                                        b: [0; 60],
+                                        valid: [false; 60] };
+
+    'minute_decoder: while {
+      let minute_syms_opt = self.md.next();
+
+      let mut valid_so_far = true;
+
+      match minute_syms_opt {
+        None => valid_so_far = false,
+        Some(minute_syms) => {
+
+          for i in 1..60 { 
+            match minute_syms[i] {
+              // TODO: could probably decode this bitwise rather than using match
+              Some(0) => {
+                progress!("p", "Decoded symbol in minute buffer");
+                decoded_syms.a[i] = 0;
+                decoded_syms.b[i] = 0;
+                decoded_syms.valid[i] = true;
+              },
+              Some(1) => {
+                progress!("q", "Decoded symbol in minute buffer");
+                decoded_syms.a[i] = 0;
+                decoded_syms.b[i] = 1;
+                decoded_syms.valid[i] = true;
+              },
+              Some(2) => {
+                progress!("r", "Decoded symbol in minute buffer");
+                decoded_syms.a[i] = 1;
+                decoded_syms.b[i] = 0;
+                decoded_syms.valid[i] = true;
+
+              },
+              Some(3) => {
+                progress!("s", "Decoded symbol in minute buffer");
+                decoded_syms.a[i] = 1;
+                decoded_syms.b[i] = 1;
+                decoded_syms.valid[i] = true;
+              },
+              _ => {
+                progress!("_", "could not decode a symbol in minute buffer");
+                valid_so_far = false;
+              }
+            }
+          }
+        }
+      }
+      false // use !valid_so_far if we want to wait for the whole minute
+            // to be valid; otherwise return even if corrupted and rely
+            // on later parity and sanity checking.
+      // !valid_so_far  
+    } {}
+
+    return Some(decoded_syms);
+  }
+
+}
+
+
+struct MessageDecoder<'lifetime> {
+  abd : ABDecoder<'lifetime>
+}
+
+
+fn init_message_decoder<'l>(mut p : ABDecoder<'l>) -> MessageDecoder<'l> {
+  dbg!("message decoder init");
+ 
+  return MessageDecoder {
+    abd: p
+  }
+}
+
+// decodes a minute-long message into a broken-down unix tm
+impl<'l> Iterator for MessageDecoder<'l> {
+  type Item = libc::tm;
+  
+  fn next(&mut self) -> Option<libc::tm> {
+
+   'tryagain: loop {
+
+   let m_opt = self.abd.next();    
+   match m_opt { 
+   Some(m) => {
+    progress!("{", "begin decode minute data");
+
+    // decode one field - eg minutes - just to see if it works
+
+    if !(m.valid[45] && m.valid[46] && m.valid[47] && m.valid[48] && m.valid[49] && m.valid[50] && m.valid [51]) {
+      progress!("!", "minutes validity bits: invalid");
+      continue 'tryagain;
+    } else {
+      progress!("M", "minutes validity bits: valid");
+    }
+
+    let minute = m.a[45] * 40 + m.a[46] * 20 + m.a[47] * 10 + m.a[48] * 8 + m.a[49] * 4 + m.a[50] * 2 + m.a[51] * 1; 
+
+    if !(m.valid[39] && m.valid[40] && m.valid[41] && m.valid[42] && m.valid[43] && m.valid [44]) {
+      progress!("!", "hours validity bits: invalid");
+      continue 'tryagain;
+    } else {
+      progress!("H", "hours validity bits: valid");
+    }
+
+    let hour = m.a[39] * 20 + m.a[40] * 10 + m.a[41] * 8 + m.a[42] * 4 + m.a[43] * 2 + m.a[44] * 1; 
+
+    // if we can't decode, loop to try again
+
+    // TODO: hour/minute parity
+
+    if !(m.valid[30] && m.valid[31] && m.valid[32] && m.valid[33] && m.valid[34] && m.valid [35]) {
+      progress!("!", "day-of-month validity bits: invalid");
+      continue 'tryagain;
+    } else {
+      progress!("D", "day-of-month validity bits: valid");
+    }
+
+    let day_of_month = m.a[30] * 20 + m.a[31] * 10 + m.a[32] * 8 + m.a[33] * 4 + m.a[34] * 2 + m.a[35] * 1; 
+   
+ 
+
+    if !(m.valid[25] && m.valid[26] && m.valid[27] && m.valid[28] && m.valid[29]) {
+      progress!("!", "month validity bits: invalid");
+      continue 'tryagain;
+    } else {
+      progress!("M", "month validity bits: valid");
+    }
+
+    let month = m.a[25] * 10 + m.a[26] * 8 + m.a[27] * 4 + m.a[28] * 2 + m.a[29] * 1; 
+
+    if !(m.valid[17] && m.valid[18] && m.valid[19] && m.valid[19] && m.valid[20] && m.valid[21] && m.valid[22] && m.valid[23] && m.valid[24]) {
+      progress!("!", "year validity bits: invalid");
+      continue 'tryagain;
+    } else {
+      progress!("Y", "year validity bits: valid");
+    }
+
+    let year = m.a[17] * 80 + m.a[18] * 40 + m.a[19] * 20 + m.a[20] * 10 + m.a[21] * 8 + m.a[22] * 4 + m.a[23] * 2 + m.a[24] * 1; 
+
+    progress!("}", "end decode minute data");
+
+    println!("");
+    println!("Decode: {}-{}-{} {}:{}", year, month, day_of_month, hour, minute);
+
+    let mut clocktime = libc::tm {
+        tm_sec: 0,
+        tm_min: minute as i32,
+        tm_hour: hour as i32,
+        tm_mday: day_of_month as i32,
+
+// QUESTION/DISCUSSION:  phrasing this as `(month -1) as i32` means that
+// if we get a corrupt month value 0, rust dies with an error about the
+// u8 underflowing on subtraction. Getting that corrupt 0 into being an
+// i32 first means that we've got the range we need. It's nice that
+// rust detects the underflow.
+        tm_mon: (month as i32) - 1,
+        tm_year: (year as i32) + 100,
+        tm_isdst: 0,
+        tm_gmtoff: 0, // unused
+        tm_wday: 0, // unused - even though it's in broadcast
+        tm_yday: 0, // unused
+        tm_zone: std::ptr::null::<u8>()  // unused
+      };
+
+
+    return Some(clocktime);
+   },
+   None => panic!("MessageDecoder returned None")
+  }
+  }
+  }
+}
+
+
 fn main() {
   print_banner();
+
+  let ntpmem = getShmTime(3);
 
   // this will iterate providing a sequence of timestamped edges.
   let mut edge_detector = init_edge_detector(GPIO_FILENAME);
@@ -463,11 +687,190 @@ fn main() {
 
   let mut minute_decoder = init_minute_decoder(symbol_decoder);
 
+  let mut ab_decoder = init_ab_decoder(minute_decoder);
+
+  let mut message_decoder = init_message_decoder(ab_decoder);
+
   loop {
     println!(""); // get a new line so that each major loop iteration has a line break
     progress!(">", "start of main infinite loop iteration");
-    minute_decoder.next();
+
+    // get the time
+    let clocktime_opt = message_decoder.next();
+    match clocktime_opt {
+     None => panic!("message decoder returned None"),
+     Some(mut clocktime) => {
+
+    // now feed it to NTP via SHM.
+
+    let tt = unsafe { libc::mktime(&mut clocktime) };
+
+    unsafe {
+
+      assert!(!ntpmem.is_null());
+
+      std::ptr::write_volatile(&mut (*ntpmem).clockTimeStampSec, tt);
+      std::ptr::write_volatile(&mut (*ntpmem).clockTimeStampUSec, 0);
+
+      std::ptr::write_volatile(&mut (*ntpmem).receiveTimeStampSec, tt); // TODO WRONG
+      std::ptr::write_volatile(&mut (*ntpmem).receiveTimeStampUSec, 0); // TODO WRONG
+
+      std::ptr::write_volatile(&mut (*ntpmem).valid, 1);
+    }
+    progress!("N", "wrote time to ntpd");
+
+  /* 
+    ntpmem->clockTimeStampSec = clocksec;
+    ntpmem->clockTimeStampUSec = 0;
+
+    gettimeofday(tv, tz);
+    ntpmem->receiveTimeStampSec = tv->tv_sec;
+    ntpmem->receiveTimeStampUSec = tv->tv_usec;
+    ntpmem->valid = 1;
+*/
+ 
+
   }
+  }
+  }
+
+
+
+
+
+
+
+// SHM stuff:
+
+// this is a constant from ntpd.
+const NTPD_BASE : libc::key_t = 0x4e545030;
+
+
+// this is a struct definition from ntpd,
+// transcribed into rust:
+
+struct ShmTime {
+  mode : libc::c_int,
+  count : libc::c_int,
+  clockTimeStampSec : libc::time_t,
+  clockTimeStampUSec : libc::c_int,
+  receiveTimeStampSec : libc::time_t,
+  receiveTimeStampUSec : libc::c_int,
+  leap : libc::c_int,
+  precision : libc::c_int,
+  nsamples : libc::c_int,
+  valid : libc::c_int,
+  clockTimeStampNSec : libc::c_uint,
+  receiveTimeStampNSec : libc::c_uint,
+  dummy : [libc::c_int; 8]
+}
+
+/*
+struct shmTime {
+        int    mode; /* 0 - if valid is set:
+                      *       use values,
+                      *       clear valid
+                      * 1 - if valid is set:
+                      *       if count before and after read of data is equal:
+                      *         use values
+                      *       clear valid
+                      */
+        volatile int    count;
+        time_t          clockTimeStampSec;
+        int             clockTimeStampUSec;
+        time_t          receiveTimeStampSec;
+        int             receiveTimeStampUSec;
+        int             leap;
+        int             precision;
+        int             nsamples;
+        volatile int    valid;
+        unsigned        clockTimeStampNSec;     /* Unsigned ns timestamps */
+        unsigned        receiveTimeStampNSec;   /* Unsigned ns timestamps */
+        int             dummy[8];
+};
+*/
+
+// following function based on BSD-licensed code from gpsd
+// TODO: this attaches the shared memory into process memory
+// space, which looks a bit like an allocation. It would be
+// nice (rust-like), I think, if the rust scoping mechanism
+// caused it to be unattached automatically when a suitable
+// object goes out of scope.
+
+fn getShmTime(unit: libc::c_int) -> *mut ShmTime {
+  println!("Getting ntpd shm unit {}", unit);
+
+  // QUESTION/DISCUSSION: use ::<> to pass in type parameters to sizeof.
+  // What does that "type parameter" passing look like in haskell? I know what it looks liek in Idris - it's just a parameter.
+
+  let key = NTPD_BASE + unit;
+
+  println!("key is {}", key);
+  println!("size is {}", std::mem::size_of::<ShmTime>());
+
+  let shmid = unsafe { libc::shmget(key, std::mem::size_of::<ShmTime>(), libc::IPC_CREAT | 0o666) };
+
+  // QUESTION/DISCUSSION: back to the land of C style error handling...
+  if shmid == -1 {
+    println!("errno = {}", std::io::Error::last_os_error());
+    panic!("Could not get shmid for NTP communication");
+  }
+
+  let shmptr = unsafe { libc::shmat(shmid, std::ptr::null::<libc::c_void>(), 0) };
+
+  if (shmptr as libc::c_int) == -1 {
+    panic!("Could not attach shared memory for NTP communication");
+  }
+
+  // QUESTION/DISCUSSION: apparently can cast a void pointer
+  // to an ShmTime pointer without declaring this unsafe.
+  return shmptr as *mut ShmTime;
+}
+
+/*
+// following function based on BSD-licensed code from gpsd
+static volatile struct shmTime *getShmTime(int unit)
+{
+#define NTPD_BASE 0x4e545030
+    int shmid;
+    unsigned int perms;
+    volatile struct shmTime *p;
+    // set the SHM perms the way ntpd does
+    if (unit < 2) {
+        // we are root, be careful
+        perms = 0600;
+    } else {
+        // we are not root, try to work anyway
+        perms = 0666;
+    }
+
+    shmid = shmget((key_t) (NTPD_BASE + unit),
+                   sizeof(struct shmTime), (int)(IPC_CREAT | perms));
+    if (shmid == -1) {
+        printf( "NTPD shmget(%ld, %zd, %o) fail: %s\n",
+                    (long int)(NTPD_BASE + unit), sizeof(struct shmTime),
+                    (int)perms, strerror(errno));
+        return NULL;
+    } 
+    p = (struct shmTime *)shmat(shmid, 0, 0);
+    /*@ -mustfreefresh */
+    if ((int)(long)p == -1) {
+        printf("NTPD shmat failed: %s\n",
+                    strerror(errno));
+        return NULL;
+    }
+    return p;
+    /*@ +mustfreefresh */
+}
+*/
+
+
+
+
+
+
+
+
 
 /*
   TODO!("get NTP shm");

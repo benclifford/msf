@@ -568,7 +568,7 @@ fn main() {
 
 fn print_banner() {
   println!("MSF decoder - Rust version");
-  println!("Copyright 2017 Ben Clifford benc@hawaga.org.uk");
+  println!("Copyright 2017-2018 Ben Clifford benc@hawaga.org.uk");
   println!("Key:");
   println!("  . = waiting for edge on GPIO input");
   println!("  T = timeout without edge on GPIO input");

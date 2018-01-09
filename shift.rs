@@ -150,6 +150,9 @@ impl Iterator for EdgeDetector {
     // loop: the body goes in the "condition" block. Note no semicolon
     // on the end.
 
+    let edge_time = time::get_time();
+    // ^ Get this time as close to the read as possible, because
+    //   that should be as close to the actual edge as possible.
 
     // QUESTION/DISCUSSION: rustc does a good job warning about
     // unused return value here if expect() is not used to capture
@@ -160,9 +163,6 @@ impl Iterator for EdgeDetector {
     let mut gpio_value = [0; 1]; // TODO: what does [0;1] mean?
     self.file.read_exact(&mut gpio_value).expect("reading a byte from GPIO");
 
-    let edge_time = time::get_time();
-    // ^ Get this time as close to the read as possible, because
-    //   that should be as close to the actual edge as possible.
 
     dbg!("EdgeDetector.next read from gpio: value {}", gpio_value[0]);
     dbg!("EdgeDetector.next, edge time is {} . {}", edge_time.sec, edge_time.nsec);

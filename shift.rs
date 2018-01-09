@@ -151,7 +151,7 @@ impl Iterator for EdgeDetector {
     // on the end.
 
 
-   // QUESTION/DISCUSSION: rustc does a good job warning about
+    // QUESTION/DISCUSSION: rustc does a good job warning about
     // unused return value here if expect() is not used to capture
     // it.
     self.file.seek(SeekFrom::Start(0)).expect("seeking to start of GPIO file");

@@ -705,15 +705,24 @@ fn main() {
 
     let tt = unsafe { libc::mktime(&mut clocktime) };
 
+    let mut tv = libc::timeval { tv_sec: 0, tv_usec: 0};
+
+    unsafe { libc::gettimeofday(&mut tv, std::ptr::null_mut::<libc::c_void>()) };
+
     unsafe {
 
       assert!(!ntpmem.is_null());
 
+      // TODO minor bug
+      // this assumes that NTP will have marked the memory as invalid
+      // already, from a previous read: otherwise we should hold off the
+      // write as we may be corrupting memory as it is being read by
+      // ntpd.
       std::ptr::write_volatile(&mut (*ntpmem).clockTimeStampSec, tt);
       std::ptr::write_volatile(&mut (*ntpmem).clockTimeStampUSec, 0);
 
-      std::ptr::write_volatile(&mut (*ntpmem).receiveTimeStampSec, tt); // TODO WRONG
-      std::ptr::write_volatile(&mut (*ntpmem).receiveTimeStampUSec, 0); // TODO WRONG
+      std::ptr::write_volatile(&mut (*ntpmem).receiveTimeStampSec, tv.tv_sec);
+      std::ptr::write_volatile(&mut (*ntpmem).receiveTimeStampUSec, tv.tv_usec);
 
       std::ptr::write_volatile(&mut (*ntpmem).valid, 1);
     }

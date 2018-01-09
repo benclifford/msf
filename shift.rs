@@ -294,6 +294,8 @@ impl<'lifetime> Iterator for SymbolDecoder<'lifetime> {
     // expected sequence length
     let mut pulse_buffer : Vec<u8> = Vec::with_capacity(5);
 
+    let mut cumulative_duration = 0;
+
     while {
       let next_pulse_opt : Option<pulse> = self.pd.next();
 
@@ -305,7 +307,9 @@ impl<'lifetime> Iterator for SymbolDecoder<'lifetime> {
       // accumulate pulse into buffer, with software debounce
       if next_pulse.duration > 0 {
         pulse_buffer.push(next_pulse.duration);
+        cumulative_duration += next_pulse.duration;
       }
+
 
       // also stop here if the buffer is getting too long 
       // - potential denial-of-service memory exhaustion
@@ -313,7 +317,8 @@ impl<'lifetime> Iterator for SymbolDecoder<'lifetime> {
       // pulses will generate a bunch of short unrecognised symbols.
 
       (next_pulse.duration < 5 || next_pulse.level != 0)
-        && pulse_buffer.len() < 5
+        && pulse_buffer.len() < 4
+        && cumulative_duration < 10
       }
     {}
 

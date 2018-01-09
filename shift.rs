@@ -379,6 +379,70 @@ impl<'lifetime> Iterator for SymbolDecoder<'lifetime> {
 // 60 symbols (except at leap second time) - and store them
 // in a bit array
 
+
+
+
+// QUESTION/DISCUSSION: this was a mutable reference originally,
+// rather than the structure taking ownership of the symbol decoder,
+// but see my question on stackoverflow about problems getting it
+// to type check the lifetimes:
+// https://stackoverflow.com/questions/48158063/reference-does-not-live-long-enough-in-nested-structure
+
+struct MinuteDecoder<'lifetime> {
+  sd : SymbolDecoder<'lifetime>
+}
+
+
+fn init_minute_decoder<'l>(mut p : SymbolDecoder<'l>) -> MinuteDecoder<'l> {
+  dbg!("minute decoder init");
+ 
+  return MinuteDecoder {
+    sd: p
+  }
+}
+
+impl<'lifetime> Iterator for MinuteDecoder<'lifetime> {
+  type Item = [Option<u8>; 60];
+  fn next(&mut self) -> Option<[Option<u8>; 60]> {
+    dbg!("MinuteDecoder.next");
+
+    // wait for minute marker - which should usually be right
+    // away but if we're out of sync, we might need to wait a while
+
+    while {
+      progress!("-", "draining until minute marker");
+      let c = self.sd.next();
+      c != Some(4)
+    } {}
+
+    // now read in remaining 59 seconds of data into a buffer
+    // TODO: nb not always 59 seconds - in presence of leap seconds
+    // To deal with that should probably accumulate symbols
+    // in a shift register and use the minute marker to
+    // label the *end* not the start of the sequence; or if we want
+    // the UT1 offset bits, use the minute marker to label the
+    // middle of the sequence.
+
+    // the numbering of syms lines up with the numbering in the NPL
+    // protocol document - so we start at 1, the first data carrying
+    // symbol.
+    let mut syms : [Option<u8>; 60] = [None; 60];
+    for offset in 1..60 {
+      // QUESTION/DISCUSSION 1..60 constructs the range 1 to 59 (!) not 1 to 60
+      syms[offset] = self.sd.next();
+      progress!("+", "read symbol in minute decoder");
+    }
+    progress!("*", "read a minute-sequence in minute decoder");
+
+    // TODO: might want to verify in this decoder, or might
+    // have another layer which checks for validity and skips.
+    // probably more composable to do it in different layer. 
+    return Some(syms);
+  }
+}
+
+
+
 // whole minute bit array -> decoded time
 // do the BCD conversions etc. maybe do parity here too
 
@@ -392,9 +456,12 @@ fn main() {
 
   let mut symbol_decoder = init_symbol_decoder(&mut pulse_detector);
 
+  let mut minute_decoder = init_minute_decoder(symbol_decoder);
+
   loop {
+    println!(""); // get a new line so that each major loop iteration has a line break
     progress!(">", "start of main infinite loop iteration");
-    symbol_decoder.next();
+    minute_decoder.next();
   }
 
 /*

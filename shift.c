@@ -9,6 +9,8 @@
 #include <errno.h>
 #include <time.h>
 #include <poll.h>
+#include <string.h>
+#include <unistd.h>
 
 // Dave_H off #a&a suggested the shift register
 // approach.
